@@ -8,7 +8,6 @@ import { formCancellationMessage, formOrdersMessage, formSalesMessage } from "./
 import { checkCancellationInDatabase, putCancellation } from "./model/CancellationModel.js";
 import { checkSalesInDatabase, putSale, updateSale } from "./model/SalesModel.js";
 import { EventEmitter } from "events";
-
 import { Telegraf } from "telegraf";
 import { checkRefundInDatabase, putRefund } from "./model/RefundModel.js";
 import axios from "axios";
@@ -269,6 +268,19 @@ async function getMessageByType(type, order) {
 
 async function startListeners() {
     console.log('Starting listener: Stub');
+    let date = await getDate();
+    let botLink = `https://api.telegram.org/bot6778620514:AAEV8vgFtR2usuNpyhnTOFMzp6_lx--NbEA/sendMessage`;
+    const { data } = await axios.post(botLink, {
+        chat_id: '-4133152997',
+        text: `Бот уведомлений Wilbdberries запущен, текущая дата: ${date}`,
+        parse_mode: 'HTML'
+    }, {
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+        }
+    });
+
+    console.log(data);
     await listenWildberries(eventEmmiter, db, todayOrdersInMarket, todayCancelledInMarket, todayRefundsInMarket, todaySalesInMarket);
 }
 
@@ -297,5 +309,33 @@ await startListeners();
 bot.launch();
 console.log(bot.botInfo);
 
-process.once('SIGINT', () => bot.stop('SIGINT'));
-process.once('SIGTERM', () => bot.stop('SIGTERM'));
+process.once('SIGINT', async () => {
+    let botLink = `https://api.telegram.org/bot6778620514:AAEV8vgFtR2usuNpyhnTOFMzp6_lx--NbEA/sendMessage`;
+    const { data } = await axios.post(botLink, {
+        chat_id: '-4133152997',
+        text: "Сервис уведомлений Wilberries временно приостановлен - ведутся технические работы. Вы получите уведомление о возобновлении работы сервиса",
+        parse_mode: 'HTML'
+    }, {
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+        }
+    });
+
+    console.log(data);
+    bot.stop('SIGINT')
+});
+process.once('SIGTERM',async () => { 
+    let botLink = `https://api.telegram.org/bot6778620514:AAEV8vgFtR2usuNpyhnTOFMzp6_lx--NbEA/sendMessage`;
+    const { data } = await axios.post(botLink, {
+        chat_id: '-4133152997',
+        text: "При попытке выполнить запрос произошла ошибка, но мы уже работаем над её устранением.",
+        parse_mode: 'HTML'
+    }, {
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+        }
+    });
+
+    console.log(data);
+    bot.stop('SIGTERM')
+});
