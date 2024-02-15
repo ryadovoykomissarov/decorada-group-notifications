@@ -241,7 +241,7 @@ async function sendNotification(type, order) {
 
     let botLink = `https://api.telegram.org/bot6778620514:AAEV8vgFtR2usuNpyhnTOFMzp6_lx--NbEA/sendPhoto`;
     const { data } = await axios.post(botLink, {
-        chat_id: '702801778',
+        chat_id: '-4133152997',
         photo: pictureLink,
         caption: message,
         parse_mode: 'HTML'
