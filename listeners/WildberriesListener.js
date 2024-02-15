@@ -1,4 +1,4 @@
-import { getCancellationsByDate, getOrdersByDate, getRefundsByDate, getSalesByDate } from "../controllers/StubController.js";
+import { getCancellationsByDate, getOrdersByDate, getRefundsByDate, getSalesByDate } from "../controllers/WildberriesController.js";
 import { db } from "../index.js";
 import { checkCancellationInDatabase, putCancellation } from "../model/CancellationModel.js";
 import { checkOrderInDatabase, putOrder } from "../model/OrderModel.js";
@@ -7,18 +7,15 @@ import { checkSalesInDatabase, putSale } from "../model/SalesModel.js";
 import { getDate } from "../utils/DateTimeUtil.js";
 
 export let emitter = null;
-let marketUri = null;
 let ordersCount = 0;
 let cancellationsCount = 0;
 let salesCount = 0;
 let refundsCount = 0;
-let ordersCountDiff = 0;
 let dbConn = null;
 let currentDate;
 
 export const listen = async (eventEmmiter, db, todayOrdersInMarketCount, todayCancellationsInMarketCount, todayRefundsInMarketCount, todaySalesInMarketCount) => {
     emitter = eventEmmiter;
-    marketUri = 'http://localhost:3000';
     dbConn = db;
     currentDate = await getDate();
     ordersCount = todayOrdersInMarketCount;
@@ -27,9 +24,9 @@ export const listen = async (eventEmmiter, db, todayOrdersInMarketCount, todayCa
     salesCount = todaySalesInMarketCount;
     
     setInterval(resetOrdersCounters, 1000);
-    setInterval(checkOrdersCount, 30000);
-    setInterval(checkCancellationsCount, 30000);
-    setInterval(checkSalesCount, 30000);
+    setInterval(checkOrdersCount, 60*15*1000);
+    setInterval(checkCancellationsCount, 60*15*1000);
+    setInterval(checkSalesCount, 60*15*1000);
     // setInterval(checkRefundsCount, 30000);
 }
 

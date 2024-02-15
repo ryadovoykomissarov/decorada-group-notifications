@@ -8,8 +8,8 @@ export const getDate = async () => {
 
 export const shortenUtc = (utcDateTime) => {
     let utcDate = utcDateTime.split('T')[0];
-    let day = utcDate.split('-')[2];
-    let month = utcDate.split('-')[1];
+    let month = utcDate.split('-')[2];
+    let day = utcDate.split('-')[1];
     let year = utcDate.split('-')[0];
     if (day[0] == '0') day.substring(1);
     if (month[0] == '0') month.substring(1);

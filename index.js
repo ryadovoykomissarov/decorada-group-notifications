@@ -1,8 +1,8 @@
-import { getOrders as getMarketplaceOrders, getSales as getMarketplaceSales } from "./controllers/StubController.js";
+import { getOrders as getMarketplaceOrders, getSales as getMarketplaceSales } from "./controllers/WildberriesController.js";
 import { checkOrderInDatabase, putOrder, updateOrder } from "./model/OrderModel.js"; 
 import { getDate, shortenUtc } from "./utils/DateTimeUtil.js";
 import { initializeConnection } from "./firebase.js";
-import { listen as listenStub } from "./listeners/StubListener.js";
+import { listen as listenWildberries } from "./listeners/WildberriesListener.js";
 import { getProductPictureByArticle } from "./model/ProductModel.js";
 import { formCancellationMessage, formOrdersMessage, formSalesMessage } from "./utils/MessagesUtil.js";
 import { checkCancellationInDatabase, putCancellation } from "./model/CancellationModel.js";
@@ -11,7 +11,6 @@ import { EventEmitter } from "events";
 
 import { Telegraf } from "telegraf";
 import { checkRefundInDatabase, putRefund } from "./model/RefundModel.js";
-import { config } from "process";
 import axios from "axios";
 
 let bot_token = '6778620514:AAEV8vgFtR2usuNpyhnTOFMzp6_lx--NbEA';
@@ -27,13 +26,13 @@ let salesIndexes = [];
 let refundsIndexes = [];
 
 const firebaseConfig = {
-    "apiKey": 'AIzaSyBk-I4ITevoHDyQQmve99RbudflNE60qqA',
-    "authDomain": 'decorada-bot-dev.firebaseapp.com',
-    "projectId": 'decorada-bot-dev',
-    "storageBucket": 'decorada-bot-dev.appspot.com',
-    "messagingSenderId": '864697005920',
-    "appId": '1:864697005920:web:6d0fa4eb3b53972d9fd005'
-};
+    apiKey: "AIzaSyBtUtTtJjEF0kqnpYOlykjPbuOETy4a0aI",
+    authDomain: "decorada-notifications-stage.firebaseapp.com",
+    projectId: "decorada-notifications-stage",
+    storageBucket: "decorada-notifications-stage.appspot.com",
+    messagingSenderId: "581331281338",
+    appId: "1:581331281338:web:fb5f40e460424f960b6983"
+  };
 
 export const eventEmmiter = new EventEmitter();
 
@@ -155,7 +154,7 @@ async function getOrdersByTypeFromStub(type) {
 }
 
 async function getSalesByTypeFromStub(type) {
-    let marketplaceSales = await getMarketplaceSales()
+    let marketplaceSales = await getMarketplaceSales();
     if (type == 'Клиентский') {
         let sales = [];
         marketplaceSales.forEach(sale => {
@@ -235,88 +234,9 @@ async function countTodayOrdersInMarket(marketplaceOrders, type) {
     }
 }
 
-// async function getOrdersByTypeFromDb(type) {
-//     if (type == 'Клиентский') {
-//         let databaseOrdersIds = [];
-//         let databaseOrders = await getDatabaseOrders(db);
-
-//         databaseOrders.forEach(order => {
-//             if (order.orderType == 'Клиентский') databaseOrdersIds.push(order.srid);
-//         });
-//         return databaseOrdersIds;
-//     } else {
-//         let databaseOrdersIds = [];
-//         let databaseOrders = await getDatabaseCancellations(db);
-
-//         databaseOrders.forEach(order => {
-//             if (order.orderType !== 'Клиентский') databaseOrdersIds.push(order.srid);
-//         });
-//         return databaseOrdersIds;
-//     }
-// }
-
-// async function getSalesByTypeFromDb(type) {
-//     if (type == 'Клиентский') {
-//         let databaseSalesIds = [];
-//         let databaseSales = await getDatabaseSales(db);
-
-//         databaseSales.forEach(sale => {
-//             if (sale.orderType == 'Клиентский') databaseSalesIds.push(sale.srid);
-//         });
-//         return databaseSalesIds;
-//     } else {
-//         let databaseSalesIds = [];
-//         let databaseSales = await getDatabaseSales(db);
-
-//         databaseSales.forEach(sale => {
-//             if (sale.orderType !== 'Клиентский') databaseSalesIds.push(sale.srid);
-//         });
-//         return databaseSales;
-//     }
-// }
-
-// async function compareAndPutNewOrders(ordersIndexes, marketplaceOrders, databaseOrdersIds) {
-//     let res = [];
-//     ordersIndexes.forEach(async i => {
-//         let mpOrder = marketplaceOrders[i+1];
-//         if (!databaseOrdersIds.includes(mpOrder.srid)) {
-//             await putOrder(db, mpOrder);
-//             res.push(mpOrder);
-//         };
-//     });
-//     return res;
-// }
-
-// async function compareAndPutNewCancellations(cancellationsIndexes, marketplaceCancellation, databaseCancellationIds) {
-//     cancellationsIndexes.forEach(async i => {
-//         let mpOrder = marketplaceCancellation[i];
-//         if (!databaseCancellationIds.includes(mpOrder.srid)) {
-//             await putCancellation(db, mpOrder);
-//         };
-//     });
-// }
-
-// async function compareAndPutNewSales(salesIndexes, marketplaceSales, databaseSalesIds) {
-//     salesIndexes.forEach(async i => {
-//         let mpSale = marketplaceSales[i];
-//         if (!databaseSalesIds.includes(mpSale.srid)) {
-//             await putSale(db, mpSale);
-//         };
-//     });
-// }
-
-// async function compareAndPutNewRefunds(refundsIndexes, marketplaceRefund, databaseRefundsIds) {
-//     refundsIndexes.forEach(async i => {
-//         let mpSale = marketplaceRefund[i];
-//         if (!databaseRefundsIds.includes(mpSale.srid)) {
-//             await putRefund(db, mpSale);
-//         };
-//     });
-// }
-
 async function sendNotification(type, order) {
     let message = await getMessageByType(type, order);
-    let pictureLink = await getProductPictureByArticle(order.supplierArticle);
+    let pictureLink = await getProductPictureByArticle(order.nmId);
 
 
     let botLink = `https://api.telegram.org/bot6778620514:AAEV8vgFtR2usuNpyhnTOFMzp6_lx--NbEA/sendPhoto`;
@@ -349,7 +269,7 @@ async function getMessageByType(type, order) {
 
 async function startListeners() {
     console.log('Starting listener: Stub');
-    await listenStub(eventEmmiter, db, todayOrdersInMarket, todayCancelledInMarket, todayRefundsInMarket, todaySalesInMarket);
+    await listenWildberries(eventEmmiter, db, todayOrdersInMarket, todayCancelledInMarket, todayRefundsInMarket, todaySalesInMarket);
 }
 
 eventEmmiter.on('new order', async function (order) {
