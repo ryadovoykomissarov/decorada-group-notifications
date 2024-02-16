@@ -1,7 +1,6 @@
 import { collection, getDocs } from "firebase/firestore";
-import { db } from "../index.js";
 
-export const getProductPictureByArticle = async (article) => {
+export const getProductPictureByArticle = async (db, article) => {
     let imageLink;
     const productsCollection = collection(db, 'products');
     const productsSnapshot = await getDocs(productsCollection);
@@ -15,4 +14,30 @@ export const getProductPictureByArticle = async (article) => {
         }
     })
     return imageLink;
+}
+
+export const getProducts = async (db) => {
+    try {
+        let result = [];
+        const productsCollection = collection(db, 'products');
+        const productsSnapshot = await getDocs(productsCollection).catch((error) => console.log(error));
+        productsSnapshot.forEach(order => {
+            result.push(order.data());
+        })
+        return result;
+    } catch (e) {
+        console.log(e);
+        return null;
+    }
+}
+
+
+export const putProduct = async (db, order) => {
+    const orderDoc = doc(db, 'products/' + order.article);
+    await setDoc(orderDoc, order)
+        .then(() => {
+            console.log('New product added to Firestore, products collection.');
+        }).catch((error) => {
+            console.error(error);
+        })
 }

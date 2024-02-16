@@ -1,5 +1,5 @@
 import { getOrders as getMarketplaceOrders, getSales as getMarketplaceSales } from "./controllers/WildberriesController.js";
-import { checkOrderInDatabase, putOrder, updateOrder } from "./model/OrderModel.js"; 
+import { checkOrderInDatabase, getOrders, putOrder, updateOrder } from "./model/OrderModel.js"; 
 import { getDate, shortenUtc } from "./utils/DateTimeUtil.js";
 import { initializeConnection } from "./firebase.js";
 import { listen as listenWildberries } from "./listeners/WildberriesListener.js";
@@ -11,6 +11,7 @@ import { EventEmitter } from "events";
 import { Telegraf } from "telegraf";
 import { checkRefundInDatabase, putRefund } from "./model/RefundModel.js";
 import axios from "axios";
+import { sleep } from "./utils/ThreadUtil.js";
 
 let bot_token = '6778620514:AAEV8vgFtR2usuNpyhnTOFMzp6_lx--NbEA';
 const bot = new Telegraf(bot_token);
@@ -45,36 +46,43 @@ async function init() {
 
 async function matchData() {
     await matchOrders();
-    await matchCancelled();
-    await matchSales();
-    await matchRefunds();
+    // await matchCancelled();
+    // await matchSales();
+    // await matchRefunds();
 }
 
 async function matchOrders() {
     let marketplaceOrders = await getOrdersByTypeFromStub('Клиентский');
+    
+    let marketplaceOrdersIds = [];
+    marketplaceOrders.forEach(order => {
+        marketplaceOrdersIds.push(order.srid);
+    })
+    
     todayOrdersInMarket = await countTodayOrdersInMarket(marketplaceOrders, 'Клиентский');
 
-    let newOrders = [];
-    marketplaceOrders.forEach(async order => {
-        let exists = await checkOrderInDatabase(db, order.srid);
-        if (exists) newOrders.push(order);
-    })
+    let databaseOrders = await getOrders(db);
+    for(let i=0; i < databaseOrders.length; i++) {
+        let dbId = databaseOrders[i].srid;
+        if(marketplaceOrdersIds.indexOf(dbId) > -1) {
+            let oldOrderId = marketplaceOrdersIds.indexOf(dbId);
+            let oldOrder = marketplaceOrders[oldOrderId];
+            marketplaceOrders.splice(marketplaceOrders.indexOf(oldOrder), 1)
+        }
+    }
 
-    newOrders.forEach(async order => {
+    // let newOrders = [];
+
+    // marketplaceOrders.forEach(async order => {
+    //     let exists = await checkOrderInDatabase(db, order.srid);
+    //     if (!exists) newOrders.push(order);
+    // })
+
+    marketplaceOrders.forEach(async order => {
         await sendNotification("Заказ - Клиентский", order);
         await putOrder(db, order);
         await updateOrder(db, order.srid, 'notified', true);
     });
-
-    
-    // let databaseOrdersIds = await getOrdersByTypeFromDb('Клиентский');
-    // не цепляет новые заказы
-    // let newOrders = await compareAndPutNewOrders(ordersIndexes, marketplaceOrders, databaseOrdersIds);
-
-    // newOrders.forEach(async (order) => {
-    //     await sendNotification("Заказ - Клиентский", order);
-    //     await updateOrder(db, order.srid, 'notified', true);
-    // })
 }
 
 async function matchCancelled() {
@@ -210,7 +218,8 @@ async function countTodayOrdersInMarket(marketplaceOrders, type) {
         let res = 0;
         marketplaceOrders.forEach(async (order, index) => {
             let orderDate = shortenUtc(order.date);
-            if (orderDate == currentDate) {
+            let lastChangedDate = shortenUtc(order.lastChangeDate);
+            if (orderDate == currentDate || lastChangedDate == currentDate) {
                 if (order.orderType == 'Клиентский') {
                     ordersIndexes.push(index);
                     res++;
@@ -222,7 +231,8 @@ async function countTodayOrdersInMarket(marketplaceOrders, type) {
         let res = 0;
         marketplaceOrders.forEach(async (order, index) => {
             let orderDate = shortenUtc(order.date);
-            if (orderDate == currentDate) {
+            let lastChangedDate = shortenUtc(order.lastChangeDate);
+            if (orderDate == currentDate || lastChangedDate == currentDate) {
                 if (order.orderType !== 'Клиентский') {
                     todayOrdersInMarket++;
                     cancellationIndexes.push(index);
@@ -234,13 +244,14 @@ async function countTodayOrdersInMarket(marketplaceOrders, type) {
 }
 
 async function sendNotification(type, order) {
+    await sleep(3000);
     let message = await getMessageByType(type, order);
-    let pictureLink = await getProductPictureByArticle(order.nmId);
+    let pictureLink = await getProductPictureByArticle(db, order.nmId);
 
 
     let botLink = `https://api.telegram.org/bot6778620514:AAEV8vgFtR2usuNpyhnTOFMzp6_lx--NbEA/sendPhoto`;
     const { data } = await axios.post(botLink, {
-        chat_id: '-4133152997',
+        chat_id: '702801778',
         photo: pictureLink,
         caption: message,
         parse_mode: 'HTML'
@@ -248,6 +259,8 @@ async function sendNotification(type, order) {
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded'
         }
+    }).catch(e => {
+        console.lot('Notificaion has not been sent. Error: ' + e)
     });
 
     console.log(data);
@@ -271,7 +284,7 @@ async function startListeners() {
     let date = await getDate();
     let botLink = `https://api.telegram.org/bot6778620514:AAEV8vgFtR2usuNpyhnTOFMzp6_lx--NbEA/sendMessage`;
     const { data } = await axios.post(botLink, {
-        chat_id: '-4133152997',
+        chat_id: '702801778',
         text: `Бот уведомлений Wilbdberries запущен, текущая дата: ${date}`,
         parse_mode: 'HTML'
     }, {
@@ -312,7 +325,7 @@ console.log(bot.botInfo);
 process.once('SIGINT', async () => {
     let botLink = `https://api.telegram.org/bot6778620514:AAEV8vgFtR2usuNpyhnTOFMzp6_lx--NbEA/sendMessage`;
     const { data } = await axios.post(botLink, {
-        chat_id: '-4133152997',
+        chat_id: '702801778',
         text: "Сервис уведомлений Wilberries временно приостановлен - ведутся технические работы. Вы получите уведомление о возобновлении работы сервиса",
         parse_mode: 'HTML'
     }, {
@@ -327,7 +340,7 @@ process.once('SIGINT', async () => {
 process.once('SIGTERM',async () => { 
     let botLink = `https://api.telegram.org/bot6778620514:AAEV8vgFtR2usuNpyhnTOFMzp6_lx--NbEA/sendMessage`;
     const { data } = await axios.post(botLink, {
-        chat_id: '-4133152997',
+        chat_id: '702801778',
         text: "При попытке выполнить запрос произошла ошибка, но мы уже работаем над её устранением.",
         parse_mode: 'HTML'
     }, {

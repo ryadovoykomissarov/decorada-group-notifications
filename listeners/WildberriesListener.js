@@ -25,8 +25,8 @@ export const listen = async (eventEmmiter, db, todayOrdersInMarketCount, todayCa
     
     setInterval(resetOrdersCounters, 1000);
     setInterval(checkOrdersCount, 60*15*1000);
-    setInterval(checkCancellationsCount, 60*15*1000);
-    setInterval(checkSalesCount, 60*15*1000);
+    // setInterval(checkCancellationsCount, 60*15*1000);
+    // setInterval(checkSalesCount, 60*15*1000);
     // setInterval(checkRefundsCount, 30000);
 }
 

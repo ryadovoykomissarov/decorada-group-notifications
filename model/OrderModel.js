@@ -32,16 +32,27 @@ export const updateOrder = async (db, orderId, fieldName, fieldValue) => {
 }
 
 export const checkOrderInDatabase = async (db, orderNumber) => {
-    try {
-        const docRef = doc(db, "orders", orderNumber);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-            return true;
-        } else return false;
-    } catch (e) {
-        console.log(e);
-        return null;
-    }
+    let docRef = doc(db, "orders", orderNumber);
+
+    let res = false;
+    await docRef.get().then(docSnap => {
+        if(docSnap.exists()) res = true;
+    })
+    return res;
+    // try {
+    //     let res = false;
+    //     const docRef = doc(db, "orders", orderNumber);
+    //     await getDoc(docRef).then((doc)=>{
+    //         res = true;
+    //     }).catch(e => console.error(e));
+    //     return res;
+    //     // if (docSnap.exists()) {
+    //     //     return true;
+    //     // } else return false;
+    // } catch (e) {
+    //     console.log(e);
+    //     return null;
+    // }
 }
 
 export const getOrderByOrderNumber = async (db, orderNumber) => {
