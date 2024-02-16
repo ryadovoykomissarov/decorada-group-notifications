@@ -25,3 +25,9 @@ export const getDateWithDashes = async () => {
     let orderDate = year + '-' + month + '-' + day;
     return orderDate;
 }
+
+export const getDateTime = async () => {
+    const now = new Date();
+    const localizedDate = now.toLocaleString();
+    return localizedDate;
+}

@@ -1,4 +1,6 @@
 import { collection, getDocs, doc, setDoc, updateDoc, getDoc } from "firebase/firestore"
+import { getDateTime } from "../utils/DateTimeUtil.js";
+import { putError, putInfo } from "./LogModel.js";
 
 export const getOrders = async (db) => {
     try {
@@ -10,7 +12,7 @@ export const getOrders = async (db) => {
         })
         return result;
     } catch (e) {
-        console.log(e);
+        await putError(await getDateTime(),'Error while fetching document from Firebase. ' + e);
         return null;
     }
 }
@@ -18,10 +20,10 @@ export const getOrders = async (db) => {
 export const putOrder = async (db, order) => {
     const orderDoc = doc(db, 'orders/' + order.srid);
     await setDoc(orderDoc, order)
-        .then(() => {
-            console.log('New order added to Firestore, orders collection. Document ID: ' + order.srid);
-        }).catch((error) => {
-            console.error(error);
+        .then(async () => {
+            await putInfo(await getDateTime(), 'New order added to Firestore, orders collection. Document ID: ' + order.srid);
+        }).catch(async (error) => {
+            await putError(await getDateTime(), 'Error while creating document in Firebase. ' + error);
         })
 }
 
@@ -49,7 +51,7 @@ export const getOrderByOrderNumber = async (db, orderNumber) => {
             return docSnap.data();
         } else return null;
     } catch (e) {
-        console.log(e);
+        await putError(await getDateTime(), 'Error while fetching document from Firebase. ' + e);
         return null;
     }
 }

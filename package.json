@@ -23,6 +23,7 @@
     "run": "^1.5.0",
     "start": "^5.1.0",
     "telegraf": "^4.15.3",
-    "telegram-keyboard": "^2.3.5"
+    "telegram-keyboard": "^2.3.5",
+    "uuid": "^9.0.1"
   }
 }

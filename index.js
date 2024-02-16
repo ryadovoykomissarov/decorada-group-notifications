@@ -1,6 +1,6 @@
 import { getOrders as getMarketplaceOrders, getSales as getMarketplaceSales } from "./controllers/WildberriesController.js";
 import { getOrders, putOrder, updateOrder } from "./model/OrderModel.js"; 
-import { getDate, shortenUtc } from "./utils/DateTimeUtil.js";
+import { getDate, getDateTime, shortenUtc } from "./utils/DateTimeUtil.js";
 import { initializeConnection } from "./firebase.js";
 import { listen as listenWildberries } from "./listeners/WildberriesListener.js";
 import { getProductPictureByArticle } from "./model/ProductModel.js";
@@ -11,8 +11,8 @@ import { EventEmitter } from "events";
 import { Telegraf } from "telegraf";
 import { checkRefundInDatabase, putRefund } from "./model/RefundModel.js";
 import axios from "axios";
-import { sleep } from "./utils/ThreadUtil.js";
 import axiosThrottle from "axios-request-throttle";
+import { putError, putInfo } from "./model/LogModel.js";
 
 let bot_token = '6778620514:AAEV8vgFtR2usuNpyhnTOFMzp6_lx--NbEA';
 const bot = new Telegraf(bot_token);
@@ -41,9 +41,9 @@ export const eventEmmiter = new EventEmitter();
 export const db = await initializeConnection(firebaseConfig);
 
 async function init() {
-    console.log('Matching data on order startup');
+    await putInfo(await getDateTime(), 'Matching data on order startup');
     await matchData();
-    console.log('Data has been matched, starting listeners');
+    await putInfo(await getDateTime(), 'Data has been matched, starting listeners');
 }
 
 async function matchData() {
@@ -253,8 +253,8 @@ async function sendNotification(type, order) {
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded'
         }
-    }).catch(e => {
-        console.log('Notificaion has not been sent. Error: ' + e);
+    }).catch(async e => {
+        await putError(await getDateTime(), 'Notificaion has not been sent. Error: ' + e);
     });
 }
 
@@ -272,7 +272,7 @@ async function getMessageByType(type, order) {
 }
 
 async function startListeners() {
-    console.log('Starting listener: Stub');
+    await putInfo(await getDateTime(), 'Starting listener: Wildberries');
     let date = await getDate();
     let botLink = `https://api.telegram.org/bot6778620514:AAEV8vgFtR2usuNpyhnTOFMzp6_lx--NbEA/sendMessage`;
     // const { data } = await axios.post(botLink, {
