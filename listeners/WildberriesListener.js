@@ -1,7 +1,7 @@
 import { getCancellationsByDate, getOrdersByDate, getRefundsByDate, getSalesByDate } from "../controllers/WildberriesController.js";
 import { db } from "../index.js";
 import { checkCancellationInDatabase, putCancellation } from "../model/CancellationModel.js";
-import { checkOrderInDatabase, putOrder } from "../model/OrderModel.js";
+import { getOrders, putOrder } from "../model/OrderModel.js";
 import { checkRefundInDatabase, putRefund } from "../model/RefundModel.js";
 import { checkSalesInDatabase, putSale } from "../model/SalesModel.js";
 import { getDate } from "../utils/DateTimeUtil.js";
@@ -22,9 +22,9 @@ export const listen = async (eventEmmiter, db, todayOrdersInMarketCount, todayCa
     refundsCount = todayRefundsInMarketCount;
     cancellationsCount = todayCancellationsInMarketCount;
     salesCount = todaySalesInMarketCount;
-    
+
     setInterval(resetOrdersCounters, 1000);
-    setInterval(checkOrdersCount, 60*15*1000);
+    setInterval(checkOrdersCount, 60 * 15 * 1000);
     // setInterval(checkCancellationsCount, 60*15*1000);
     // setInterval(checkSalesCount, 60*15*1000);
     // setInterval(checkRefundsCount, 30000);
@@ -32,7 +32,7 @@ export const listen = async (eventEmmiter, db, todayOrdersInMarketCount, todayCa
 
 const resetOrdersCounters = async () => {
     let date = await getDate()
-    if(date!=currentDate) {
+    if (date != currentDate) {
         currentDate = date;
         ordersCount = 0;
         refundsCount = 0;
@@ -41,26 +41,31 @@ const resetOrdersCounters = async () => {
 }
 
 const checkOrdersCount = async () => {
-    let todayInMarket =  await getOrdersByDate(currentDate);
-    todayInMarket.forEach(async (order) => {
-        let isInDatabase = await checkOrderInDatabase(dbConn, order.srid);
-        if(!isInDatabase && isInDatabase!==null) {
-            await putOrder(dbConn, order).then(() => {
-                console.log('Order added to database. Id: ' + order.srid);
-                emitter.emit('new order', order);
-            }).catch(e => {
-                console.log(e);
-            });
-            ordersCount++;
+    let todayInMarket = await getOrdersByDate(currentDate);
+
+    let databaseOrders = await getOrders(db);
+    for (let i = 0; i < databaseOrders.length; i++) {
+        let dbId = databaseOrders[i].srid;
+        if(todayInMarket.indexOf(dbId) > -1) {
+            let oldOrderId = todayInMarket.indexOf(dbId);
+            let oldOrder = todayInMarket[oldOrderId];
+            todayInMarket.splice(todayInMarket.indexOf(oldOrder), 1);
         }
-    })
+    }
+
+    todayInMarket.forEach(async order => {
+        await putOrder(db, order);
+        emitter.emit('new order', order);
+    });
+
+    ordersCount = todayInMarket.length;
 }
 
 const checkCancellationsCount = async () => {
-    let todayInMarket =  await getCancellationsByDate(currentDate);
+    let todayInMarket = await getCancellationsByDate(currentDate);
     todayInMarket.forEach(async (order) => {
         let isInDatabase = await checkCancellationInDatabase(dbConn, order.srid);
-        if(!isInDatabase && isInDatabase!==null) {
+        if (!isInDatabase && isInDatabase !== null) {
             await putCancellation(dbConn, order).then(() => {
                 console.log('Cancellation added to database. Id: ' + order.srid);
                 emitter.emit('new cancellation', order);
@@ -73,10 +78,10 @@ const checkCancellationsCount = async () => {
 }
 
 const checkSalesCount = async () => {
-    let todayInMarket =  await getSalesByDate(currentDate);
+    let todayInMarket = await getSalesByDate(currentDate);
     todayInMarket.forEach(async (order) => {
         let isInDatabase = await checkSalesInDatabase(dbConn, order.srid);
-        if(!isInDatabase && isInDatabase!==null) {
+        if (!isInDatabase && isInDatabase !== null) {
             await putSale(dbConn, order).then(() => {
                 console.log('Sale added to database. Id: ' + order.srid);
                 emitter.emit('new sale', order);
@@ -89,10 +94,10 @@ const checkSalesCount = async () => {
 }
 
 const checkRefundsCount = async () => {
-    let todayInMarket =  await getRefundsByDate(currentDate);
+    let todayInMarket = await getRefundsByDate(currentDate);
     todayInMarket.forEach(async (order) => {
         let isInDatabase = await checkRefundInDatabase(db, order.srid);
-        if(!isInDatabase && isInDatabase!==null) {
+        if (!isInDatabase && isInDatabase !== null) {
             await putRefund(db, order).then(() => {
                 console.log('Refund added to database. Id: ' + order.srid);
                 emitter.emit('new refund', order);

@@ -1,5 +1,5 @@
 import { getOrders as getMarketplaceOrders, getSales as getMarketplaceSales } from "./controllers/WildberriesController.js";
-import { checkOrderInDatabase, getOrders, putOrder, updateOrder } from "./model/OrderModel.js"; 
+import { getOrders, putOrder, updateOrder } from "./model/OrderModel.js"; 
 import { getDate, shortenUtc } from "./utils/DateTimeUtil.js";
 import { initializeConnection } from "./firebase.js";
 import { listen as listenWildberries } from "./listeners/WildberriesListener.js";
@@ -12,9 +12,11 @@ import { Telegraf } from "telegraf";
 import { checkRefundInDatabase, putRefund } from "./model/RefundModel.js";
 import axios from "axios";
 import { sleep } from "./utils/ThreadUtil.js";
+import axiosThrottle from "axios-request-throttle";
 
 let bot_token = '6778620514:AAEV8vgFtR2usuNpyhnTOFMzp6_lx--NbEA';
 const bot = new Telegraf(bot_token);
+axiosThrottle.use(axios, { requestsPerSecond: 1 });
 
 let todayOrdersInMarket = 0;
 let todayCancelledInMarket = 0;
@@ -71,17 +73,10 @@ async function matchOrders() {
         }
     }
 
-    // let newOrders = [];
-
-    // marketplaceOrders.forEach(async order => {
-    //     let exists = await checkOrderInDatabase(db, order.srid);
-    //     if (!exists) newOrders.push(order);
-    // })
-
     marketplaceOrders.forEach(async order => {
-        await sendNotification("Заказ - Клиентский", order);
         await putOrder(db, order);
         await updateOrder(db, order.srid, 'notified', true);
+        await sendNotification("Заказ - Клиентский", order);
     });
 }
 
@@ -218,8 +213,8 @@ async function countTodayOrdersInMarket(marketplaceOrders, type) {
         let res = 0;
         marketplaceOrders.forEach(async (order, index) => {
             let orderDate = shortenUtc(order.date);
-            let lastChangedDate = shortenUtc(order.lastChangeDate);
-            if (orderDate == currentDate || lastChangedDate == currentDate) {
+            // let lastChangedDate = shortenUtc(order.lastChangeDate);
+            if (orderDate == currentDate) {
                 if (order.orderType == 'Клиентский') {
                     ordersIndexes.push(index);
                     res++;
@@ -244,14 +239,13 @@ async function countTodayOrdersInMarket(marketplaceOrders, type) {
 }
 
 async function sendNotification(type, order) {
-    await sleep(3000);
     let message = await getMessageByType(type, order);
     let pictureLink = await getProductPictureByArticle(db, order.nmId);
 
 
     let botLink = `https://api.telegram.org/bot6778620514:AAEV8vgFtR2usuNpyhnTOFMzp6_lx--NbEA/sendPhoto`;
-    const { data } = await axios.post(botLink, {
-        chat_id: '-4133152997',
+    await axios.post(botLink, {
+        chat_id: '-1001999915316',
         photo: pictureLink,
         caption: message,
         parse_mode: 'HTML'
@@ -260,10 +254,8 @@ async function sendNotification(type, order) {
             'Content-Type': 'application/x-www-form-urlencoded'
         }
     }).catch(e => {
-        console.lot('Notificaion has not been sent. Error: ' + e)
+        console.log('Notificaion has not been sent. Error: ' + e);
     });
-
-    console.log(data);
 }
 
 async function getMessageByType(type, order) {
@@ -283,23 +275,23 @@ async function startListeners() {
     console.log('Starting listener: Stub');
     let date = await getDate();
     let botLink = `https://api.telegram.org/bot6778620514:AAEV8vgFtR2usuNpyhnTOFMzp6_lx--NbEA/sendMessage`;
-    const { data } = await axios.post(botLink, {
-        chat_id: '-4133152997',
-        text: `Бот уведомлений Wilbdberries запущен, текущая дата: ${date}`,
-        parse_mode: 'HTML'
-    }, {
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
-        }
-    });
+    // const { data } = await axios.post(botLink, {
+    //     chat_id: '-1001999915316',
+    //     text: `Бот уведомлений Wilbdberries запущен, текущая дата: ${date}`,
+    //     parse_mode: 'HTML'
+    // }, {
+    //     headers: {
+    //         'Content-Type': 'application/x-www-form-urlencoded'
+    //     }
+    // });
 
-    console.log(data);
+    // console.log(data);
     await listenWildberries(eventEmmiter, db, todayOrdersInMarket, todayCancelledInMarket, todayRefundsInMarket, todaySalesInMarket);
 }
 
 eventEmmiter.on('new order', async function (order) {
-    await sendNotification('Заказ - Клиентский', order);
     await updateOrder(db, order.srid, 'notified', true);
+    await sendNotification('Заказ - Клиентский', order);
 });
 
 eventEmmiter.on('new cancellation', async function (order) {
@@ -320,35 +312,34 @@ eventEmmiter.on('new refund', async function (order) {
 await init();
 await startListeners();
 bot.launch();
-console.log(bot.botInfo);
 
 process.once('SIGINT', async () => {
-    let botLink = `https://api.telegram.org/bot6778620514:AAEV8vgFtR2usuNpyhnTOFMzp6_lx--NbEA/sendMessage`;
-    const { data } = await axios.post(botLink, {
-        chat_id: '-4133152997',
-        text: "Сервис уведомлений Wilberries временно приостановлен - ведутся технические работы. Вы получите уведомление о возобновлении работы сервиса",
-        parse_mode: 'HTML'
-    }, {
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
-        }
-    });
+    // let botLink = `https://api.telegram.org/bot6778620514:AAEV8vgFtR2usuNpyhnTOFMzp6_lx--NbEA/sendMessage`;
+    // const { data } = await axios.post(botLink, {
+    //     chat_id: '-1001999915316',
+    //     text: "Сервис уведомлений Wilberries временно приостановлен - ведутся технические работы. Вы получите уведомление о возобновлении работы сервиса",
+    //     parse_mode: 'HTML'
+    // }, {
+    //     headers: {
+    //         'Content-Type': 'application/x-www-form-urlencoded'
+    //     }
+    // });
 
-    console.log(data);
+    // console.log(data);
     bot.stop('SIGINT')
 });
 process.once('SIGTERM',async () => { 
-    let botLink = `https://api.telegram.org/bot6778620514:AAEV8vgFtR2usuNpyhnTOFMzp6_lx--NbEA/sendMessage`;
-    const { data } = await axios.post(botLink, {
-        chat_id: '-4133152997',
-        text: "При попытке выполнить запрос произошла ошибка, но мы уже работаем над её устранением.",
-        parse_mode: 'HTML'
-    }, {
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
-        }
-    });
+    // let botLink = `https://api.telegram.org/bot6778620514:AAEV8vgFtR2usuNpyhnTOFMzp6_lx--NbEA/sendMessage`;
+    // const { data } = await axios.post(botLink, {
+    //     chat_id: '-1001999915316',
+    //     text: "При попытке выполнить запрос произошла ошибка, но мы уже работаем над её устранением.",
+    //     parse_mode: 'HTML'
+    // }, {
+    //     headers: {
+    //         'Content-Type': 'application/x-www-form-urlencoded'
+    //     }
+    // });
 
-    console.log(data);
+    // console.log(data);
     bot.stop('SIGTERM')
 });

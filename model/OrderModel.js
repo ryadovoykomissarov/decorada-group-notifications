@@ -19,7 +19,7 @@ export const putOrder = async (db, order) => {
     const orderDoc = doc(db, 'orders/' + order.srid);
     await setDoc(orderDoc, order)
         .then(() => {
-            console.log('New order added to Firestore, orders collection.');
+            console.log('New order added to Firestore, orders collection. Document ID: ' + order.srid);
         }).catch((error) => {
             console.error(error);
         })
@@ -39,20 +39,6 @@ export const checkOrderInDatabase = async (db, orderNumber) => {
         if(docSnap.exists()) res = true;
     })
     return res;
-    // try {
-    //     let res = false;
-    //     const docRef = doc(db, "orders", orderNumber);
-    //     await getDoc(docRef).then((doc)=>{
-    //         res = true;
-    //     }).catch(e => console.error(e));
-    //     return res;
-    //     // if (docSnap.exists()) {
-    //     //     return true;
-    //     // } else return false;
-    // } catch (e) {
-    //     console.log(e);
-    //     return null;
-    // }
 }
 
 export const getOrderByOrderNumber = async (db, orderNumber) => {

@@ -5,6 +5,7 @@ export const formOrdersMessage = async (order) => {
     let header = 'Новый <b>заказ</b>. \n\n';
 
     let orderType = '<b>Тип заказа:</b> ' + order.orderType + "\n";
+    let orderId = '<b>Идентификатор заказа:</b> ' + order.srid + "\n";
     let dateInMessage = '<b>Дата:</b> ' + date + "\n\n"; 
     
     let sellerArticle = '<b>Артикул продавца:</b> ' + order.supplierArticle + '\n';
@@ -25,6 +26,7 @@ export const formOrdersMessage = async (order) => {
     let regions = '<b>Регион:</b> ' + order.countryName + ', ' + order.oblastOkrugName + ', ' + order.regionName + ' обл.\n<b>Склад отгрузки:</b> ' + order.warehouseName;
     return header + 
             orderType + 
+            orderId +
             dateInMessage + 
             sellerArticle + 
             nmId + 
