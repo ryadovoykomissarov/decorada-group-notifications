@@ -13,6 +13,8 @@ import { checkRefundInDatabase, putRefund } from "./model/RefundModel.js";
 import axios from "axios";
 import axiosThrottle from "axios-request-throttle";
 import { putError, putInfo } from "./model/LogModel.js";
+import { express } from 'express';
+const app = express();
 
 let bot_token = '6778620514:AAEV8vgFtR2usuNpyhnTOFMzp6_lx--NbEA';
 const bot = new Telegraf(bot_token);
@@ -309,6 +311,14 @@ eventEmmiter.on('new refund', async function (order) {
     await updateOrder(db, order.srid, 'notified', true);
 });
 
+app.get('/', (req, res) => {
+    res.send('Hello');
+});
+
+const port = 3000;
+app.listen(port, () => {
+    console.log('App is running on port ' + port);
+})
 await init();
 await startListeners();
 bot.launch();
