@@ -9,7 +9,6 @@ const salesEndpoit = "https://statistics-api.wildberries.ru/api/v1/supplier/sale
 const wbToken = "eyJhbGciOiJFUzI1NiIsImtpZCI6IjIwMjMxMjI1djEiLCJ0eXAiOiJKV1QifQ.eyJlbnQiOjEsImV4cCI6MTcyMzYwNzkyMSwiaWQiOiJlNGY4MWUyMC01NTU5LTQ2ZGEtOTA0OC00MzIxMWIwYzcxYjIiLCJpaWQiOjUzODE3NTY2LCJvaWQiOjIyMjEzNiwicyI6NTIsInNpZCI6IjUzNTlmM2FhLWNlNWUtNDA4Ni04MDliLTcxMDQ3NmIzN2QxYyIsInQiOmZhbHNlLCJ1aWQiOjUzODE3NTY2fQ.iO_7EsuWLLFZAWJitPl-0d6xxE_s-kmcbD3ENg2-2A79hf1oQcxwV40_rvKkHY2xNZOfZchNUiDYIbctPwG-IA";
 
 export const getOrders = async () => {
-    await sleep(60000);
     const startDate = await getDateWithDashes();
     let orders;
     let config = {
