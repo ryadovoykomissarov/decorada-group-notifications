@@ -20,9 +20,9 @@ export const shortenUtc = (utcDateTime) => {
 // use dots when running locally
 export const getDateWithDashes = async () => {
     let dateToSplit = await getDate();
-    let day = dateToSplit.split('/')[0];
+    let month = dateToSplit.split('/')[0];
     if (day.length == 1) day = '0' + day;
-    let month = dateToSplit.split('/')[1];
+    let day = dateToSplit.split('/')[1];
     if (month.length == 1) day = '0' + day;
     let year = dateToSplit.split('/')[2];
     let orderDate = year + '-' + month + '-' + day;
