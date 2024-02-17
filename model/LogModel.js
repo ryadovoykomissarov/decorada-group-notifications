@@ -20,7 +20,8 @@ export const putError = async (time, message) => {
         'message': message
     };
 
-    const logDoc = doc(db, 'logger/logs/error/');
+    let id = v4();
+    const logDoc = doc(db, 'logger', `/logs/error/${id}`);
     await setDoc(logDoc, logMessage)
         .catch((e) => {}); 
 }

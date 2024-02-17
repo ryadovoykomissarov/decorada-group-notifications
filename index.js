@@ -275,15 +275,15 @@ async function startListeners() {
     await putInfo(await getDateTime(), 'Starting listener: Wildberries');
     let date = await getDate();
     let botLink = `https://api.telegram.org/bot6778620514:AAEV8vgFtR2usuNpyhnTOFMzp6_lx--NbEA/sendMessage`;
-    // const { data } = await axios.post(botLink, {
-    //     chat_id: '-1001999915316',
-    //     text: `Бот уведомлений Wilbdberries запущен, текущая дата: ${date}`,
-    //     parse_mode: 'HTML'
-    // }, {
-    //     headers: {
-    //         'Content-Type': 'application/x-www-form-urlencoded'
-    //     }
-    // });
+    const { data } = await axios.post(botLink, {
+        chat_id: '702801778',
+        text: `Бот уведомлений Wilbdberries запущен, текущая дата: ${date}`,
+        parse_mode: 'HTML'
+    }, {
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+        }
+    });
 
     // console.log(data);
     await listenWildberries(eventEmmiter, db, todayOrdersInMarket, todayCancelledInMarket, todayRefundsInMarket, todaySalesInMarket);
