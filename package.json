@@ -17,11 +17,7 @@
     "firebase": "^10.7.2",
     "firebase-admin": "^12.0.0",
     "firebase-functions": "^4.7.0",
-    "netlify-lambda": "^2.0.16",
-    "node-cache": "^5.1.2",
     "npm": "^10.4.0",
-    "run": "^1.5.0",
-    "start": "^5.1.0",
     "telegraf": "^4.15.3",
     "telegram-keyboard": "^2.3.5"
   }
