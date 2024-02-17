@@ -13,9 +13,9 @@ import { checkRefundInDatabase, putRefund } from "./model/RefundModel.js";
 import axios from "axios";
 import axiosThrottle from "axios-request-throttle";
 import { putError, putInfo } from "./model/LogModel.js";
-import { express } from 'express';
-const app = express();
+import express from 'express';
 
+const app = express();
 let bot_token = '6778620514:AAEV8vgFtR2usuNpyhnTOFMzp6_lx--NbEA';
 const bot = new Telegraf(bot_token);
 axiosThrottle.use(axios, { requestsPerSecond: 1 });
