@@ -7,6 +7,7 @@ export const putInfo = async (time, message) => {
         'time': time,
         'message': message
     };
+    console.log(JSON.stringify(logMessage));
 
     let id = v4();
     const logDoc = doc(db, 'logger', `logs/info/${id}`);
