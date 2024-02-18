@@ -1,6 +1,18 @@
-import { collection, getDocs, doc, setDoc, updateDoc, getDoc } from "firebase/firestore"
-import { getDateTime } from "../utils/DateTimeUtil.js";
+import { collection, getDocs, doc, setDoc, updateDoc, getDoc, query, where } from "firebase/firestore"
+import { getDate, getDateTime, shortenUtc } from "../utils/DateTimeUtil.js";
 import { putError, putInfo } from "./LogModel.js";
+import { dError, dWarn } from "../utils/Logger.js";
+
+export const checkDocumentExists = async (db, collectionName, id) => {
+    try{
+        const docRef = doc(collection(db, collectionName), id);
+        const docSnap = await getDoc(docRef);
+        return docSnap.exists;
+    } catch (error) {
+        dError('Error checking document existence: ' + error);
+        return false;
+    }
+}
 
 export const getOrders = async (db) => {
     try {
@@ -12,8 +24,28 @@ export const getOrders = async (db) => {
         })
         return result;
     } catch (e) {
-        await putError(await getDateTime(),'Error while fetching document from Firebase. ' + e);
+        await putError(await getDateTime(), 'Error while fetching document from Firebase. ' + e);
         return null;
+    }
+}
+
+export const getOrdersByDate = async (db, date) => {
+    try {
+        let result = [];
+        let orders = await getOrders(db);
+        orders.forEach(order => {
+            let orderDate = order.date;
+            if (orderDate) {
+                orderDate = shortenUtc(orderDate);
+                if (orderDate == date) {
+                    result.push(order)
+                }
+            }
+        })
+        return result;
+    } catch (e) {
+        await putError(await getDateTime(), 'Error while filtering orders by date. ' + e);
+        return resul;
     }
 }
 
@@ -38,7 +70,7 @@ export const checkOrderInDatabase = async (db, orderNumber) => {
 
     let res = false;
     await docRef.get().then(docSnap => {
-        if(docSnap.exists()) res = true;
+        if (docSnap.exists()) res = true;
     })
     return res;
 }

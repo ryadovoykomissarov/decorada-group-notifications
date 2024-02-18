@@ -1,12 +1,11 @@
-import { getCancellationsByDate, getOrdersByDate, getRefundsByDate, getSalesByDate } from "../controllers/WildberriesController.js";
-import { db } from "../index.js";
-import { checkCancellationInDatabase, putCancellation } from "../model/CancellationModel.js";
-import { getOrders, putOrder } from "../model/OrderModel.js";
-import { checkRefundInDatabase, putRefund } from "../model/RefundModel.js";
-import { checkSalesInDatabase, putSale } from "../model/SalesModel.js";
+import { getChangedOrdersByDate, getOrdersByDate } from "../controllers/WildberriesController.js";
+import { db, eventEmmiter } from "../index.js";
+import { putCancellation } from "../model/CancellationModel.js";
+import { checkDocumentExists, getOrders, putOrder } from "../model/OrderModel.js";
 import { getDate } from "../utils/DateTimeUtil.js";
+import { dInfo } from "../utils/Logger.js";
 
-export let emitter = null;
+let emitter = null;
 let ordersCount = 0;
 let cancellationsCount = 0;
 let salesCount = 0;
@@ -14,25 +13,27 @@ let refundsCount = 0;
 let dbConn = null;
 let currentDate;
 
-export const listen = async (eventEmmiter, db, todayOrdersInMarketCount, todayCancellationsInMarketCount, todayRefundsInMarketCount, todaySalesInMarketCount) => {
-    emitter = eventEmmiter;
-    dbConn = db;
+// Initialize the listener
+export const listen = async (eventEmitter, database, ordersCount, cancellationsCount, refundsCount, salesCount) => {
+    emitter = eventEmitter;
+    dbConn = database;
     currentDate = await getDate();
-    ordersCount = todayOrdersInMarketCount;
-    refundsCount = todayRefundsInMarketCount;
-    cancellationsCount = todayCancellationsInMarketCount;
-    salesCount = todaySalesInMarketCount;
+    ordersCount = ordersCount;
+    cancellationsCount = cancellationsCount;
+    salesCount = salesCount;
+    refundsCount = refundsCount;
 
-    setInterval(resetOrdersCounters, 1000);
-    setInterval(checkOrdersCount, 60 * 15 * 1000);
-    // setInterval(checkCancellationsCount, 60*15*1000);
-    // setInterval(checkSalesCount, 60*15*1000);
-    // setInterval(checkRefundsCount, 30000);
+    setInterval(resetCounters, 1000);
+    setInterval(() => checkDataCount(getOrdersByDate, putOrder, 'new order'), 1 * 120 * 1000);
+    // setInterval(() => checkDataCount(getOrdersByDate, putOrder, 'new order'), 1 * 120 * 1000);
+    // Add similar setInterval calls for other data types
 }
 
-const resetOrdersCounters = async () => {
-    let date = await getDate()
-    if (date != currentDate) {
+// Reset the counters and emit daily report if date changes
+const resetCounters = async () => {
+    let date = await getDate();
+    if (date !== currentDate) {
+        eventEmmiter.emit('daily report');
         currentDate = date;
         ordersCount = 0;
         refundsCount = 0;
@@ -40,71 +41,51 @@ const resetOrdersCounters = async () => {
     }
 }
 
-const checkOrdersCount = async () => {
-    let todayInMarket = await getOrdersByDate(currentDate);
+// Check and process data count for a specific type
+const checkDataCount = async (getDataByDate, putData, eventType) => {
+    await dInfo('Listening circle started.');
+    let dataInMarket = await getDataByDate(currentDate);
+    let count = 0;
 
-    let databaseOrders = await getOrders(db);
-    for (let i = 0; i < databaseOrders.length; i++) {
-        let dbId = databaseOrders[i].srid;
-        if(todayInMarket.indexOf(dbId) > -1) {
-            let oldOrderId = todayInMarket.indexOf(dbId);
-            let oldOrder = todayInMarket[oldOrderId];
-            todayInMarket.splice(todayInMarket.indexOf(oldOrder), 1);
+    const processDocument = async (data) => {
+        let exists = await checkDocumentExists(db, 'orders', data.srid);
+        if(!exists) {
+            await putData(db, data);
+            emitter.emit(eventType, data);
+            dInfo('New order event emitted. Order srid: ' + data.srid);
+            count++;
         }
     }
 
-    todayInMarket.forEach(async order => {
-        await putOrder(db, order);
-        emitter.emit('new order', order);
-    });
+    const processDocumentWithTimeout = async (documents) => {
+        for (const data of documents) {
+            await processDocument(data);
+            await new Promise(resolve => setTimeout(resolve, 60000));
+        }
+    };
 
-    ordersCount = todayInMarket.length;
+    await processDocumentWithTimeout(dataInMarket);
+
+    updateCount(eventType, count);
+    await dInfo('Listening circle completed. New orders: ' + count);
 }
 
-const checkCancellationsCount = async () => {
-    let todayInMarket = await getCancellationsByDate(currentDate);
-    todayInMarket.forEach(async (order) => {
-        let isInDatabase = await checkCancellationInDatabase(dbConn, order.srid);
-        if (!isInDatabase && isInDatabase !== null) {
-            await putCancellation(dbConn, order).then(() => {
-                console.log('Cancellation added to database. Id: ' + order.srid);
-                emitter.emit('new cancellation', order);
-            }).catch(e => {
-                console.log(e);
-            });
-            cancellationsCount++;
-        }
-    })
-}
-
-const checkSalesCount = async () => {
-    let todayInMarket = await getSalesByDate(currentDate);
-    todayInMarket.forEach(async (order) => {
-        let isInDatabase = await checkSalesInDatabase(dbConn, order.srid);
-        if (!isInDatabase && isInDatabase !== null) {
-            await putSale(dbConn, order).then(() => {
-                console.log('Sale added to database. Id: ' + order.srid);
-                emitter.emit('new sale', order);
-            }).catch(e => {
-                console.log(e);
-            });
-            salesCount++;
-        }
-    })
-}
-
-const checkRefundsCount = async () => {
-    let todayInMarket = await getRefundsByDate(currentDate);
-    todayInMarket.forEach(async (order) => {
-        let isInDatabase = await checkRefundInDatabase(db, order.srid);
-        if (!isInDatabase && isInDatabase !== null) {
-            await putRefund(db, order).then(() => {
-                console.log('Refund added to database. Id: ' + order.srid);
-                emitter.emit('new refund', order);
-            }).catch(e => {
-                console.log(e);
-            });
-            refundsCount++;
-        }
-    })
+// Update the count based on the processed data type
+const updateCount = (eventType, count) => {
+    switch (eventType) {
+        case 'new order':
+            ordersCount += count;
+            break;
+        case 'new refund':
+            refundsCount += count;
+            break;
+        case 'new sale':
+            salesCount += count;
+            break;
+        case 'new cancellation':
+            cancellationsCount += count;
+            break;
+        default:
+            break;
+    }
 }

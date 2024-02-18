@@ -6,8 +6,6 @@ export const getProductPictureByArticle = async (db, article) => {
     const productsSnapshot = await getDocs(productsCollection);
     productsSnapshot.forEach(product => {
         let productData = product.data();
-        console.log(article + ' article');
-        console.log(productData.article + ' pd article');
         if(productData.article==article) {
             imageLink = productData.image;
             return imageLink;

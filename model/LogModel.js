@@ -20,6 +20,7 @@ export const putError = async (time, message) => {
         'time': time,
         'message': message
     };
+    console.log(JSON.stringify(logMessage));
 
     let id = v4();
     const logDoc = doc(db, 'logger', `/logs/error/${id}`);
@@ -32,6 +33,7 @@ export const putDebug = async (time, message) => {
         'time': time,
         'message': message
     };
+    console.log(JSON.stringify(logMessage));
 
     const logDoc = doc(db, 'logger/logs/debug/');
     await setDoc(logDoc, logMessage)
