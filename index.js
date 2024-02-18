@@ -343,8 +343,8 @@ eventEmmiter.on('new refund', async function (order) {
     await updateOrder(db, order.srid, 'notified', true);
 });
 
-eventEmmiter.on('daily report', async function () {
-    let stats = await countDailyStats(await getDate());
+eventEmmiter.on('daily report', async function (previousDate) {
+    let stats = await countDailyStats(previousDate);
     let message = await formDailyReport(stats);
     let botLink = `https://api.telegram.org/bot6778620514:AAEV8vgFtR2usuNpyhnTOFMzp6_lx--NbEA/sendMessage`;
     const { data } = await axios.post(botLink, {

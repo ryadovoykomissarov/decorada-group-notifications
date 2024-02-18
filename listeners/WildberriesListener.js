@@ -33,7 +33,7 @@ export const listen = async (eventEmitter, database, ordersCount, cancellationsC
 const resetCounters = async () => {
     let date = await getDate();
     if (date !== currentDate) {
-        eventEmmiter.emit('daily report');
+        eventEmmiter.emit('daily report', currentDate);
         currentDate = date;
         ordersCount = 0;
         refundsCount = 0;
