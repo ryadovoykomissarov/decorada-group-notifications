@@ -1,5 +1,5 @@
 import { getOrders as getMarketplaceOrders, getSales as getMarketplaceSales } from "./controllers/WildberriesController.js";
-import { getOrders, putOrder, updateOrder } from "./model/OrderModel.js";
+import { checkDocumentExists, putOrder, updateOrder } from "./model/OrderModel.js";
 import { getDate, getDateTime, shortenUtc } from "./utils/DateTimeUtil.js";
 import { initializeConnection } from "./firebase.js";
 import { listen as listenWildberries } from "./listeners/WildberriesListener.js";
@@ -12,11 +12,12 @@ import { Telegraf } from "telegraf";
 import { checkRefundInDatabase, putRefund } from "./model/RefundModel.js";
 import axios from "axios";
 import axiosThrottle from "axios-request-throttle";
-import { putError, putInfo } from "./model/LogModel.js";
+import { putInfo } from "./model/LogModel.js";
 import express from 'express';
 import { stat } from "fs";
 import { countDailyStats } from "./utils/StatsUtil.js";
-import { dError } from "./utils/Logger.js";
+import { dError, dInfo } from "./utils/Logger.js";
+import moment from "moment";
 
 const app = express();
 let bot_token = '6778620514:AAEV8vgFtR2usuNpyhnTOFMzp6_lx--NbEA';
@@ -59,30 +60,34 @@ async function matchData() {
 }
 
 async function matchOrders() {
-    let marketplaceOrders = await getOrdersByTypeFromStub('Клиентский');
+    let currentDate = moment().format();
+    const requestFilter = currentDate.split('T')[0];
+    let marketplaceData = await getMarketplaceOrders(requestFilter);
 
-    let marketplaceOrdersIds = [];
-    marketplaceOrders.forEach(order => {
-        marketplaceOrdersIds.push(order.srid);
-    })
-
-    todayOrdersInMarket = await countTodayOrdersInMarket(marketplaceOrders, 'Клиентский');
-
-    let databaseOrders = await getOrders(db);
-    for (let i = 0; i < databaseOrders.length; i++) {
-        let dbId = databaseOrders[i].srid;
-        if (marketplaceOrdersIds.indexOf(dbId) > -1) {
-            let oldOrderId = marketplaceOrdersIds.indexOf(dbId);
-            let oldOrder = marketplaceOrders[oldOrderId];
-            marketplaceOrders.splice(marketplaceOrders.indexOf(oldOrder), 1)
+    const processDocument = async (data) => {
+        let exists = await checkDocumentExists(db, 'orders', data.srid);
+        if (!exists) {
+            await putOrder(db, data);
+            eventEmmiter.emit('new order', data);
+            dInfo('New order event emitted. Order srid: ' + data.srid);
         }
     }
 
-    marketplaceOrders.forEach(async order => {
-        await putOrder(db, order);
-        await updateOrder(db, order.srid, 'notified', true);
-        await sendNotification("Заказ - Клиентский", order);
+    const processDocumentWithTimeout = async (documents) => {
+        for (const data of documents) {
+            await processDocument(data);
+            await new Promise(resolve => setTimeout(resolve, 60000));
+        }
+    };
+
+    let matchingOrders = [];
+    marketplaceData.forEach(async (order) => {
+        if (order.date.split('T')[0] == requestFilter) {
+            matchingOrders.push(order);
+        }
     });
+
+    await processDocumentWithTimeout(matchingOrders);
 }
 
 async function matchCancelled() {
@@ -137,7 +142,8 @@ async function matchRefunds() {
 }
 
 async function getOrdersByTypeFromStub(type) {
-    let marketplaceOrders = await getMarketplaceOrders();
+    let currentDate = moment().format().split('T')[0];
+    let marketplaceOrders = await getMarketplaceOrders(currentDate);
 
     if (type == 'Клиентский') {
         let orders = [];
@@ -218,7 +224,6 @@ async function countTodayOrdersInMarket(marketplaceOrders, type) {
         let res = 0;
         marketplaceOrders.forEach(async (order, index) => {
             let orderDate = shortenUtc(order.date);
-            // let lastChangedDate = shortenUtc(order.lastChangeDate);
             if (orderDate == currentDate) {
                 if (order.orderType == 'Клиентский') {
                     ordersIndexes.push(index);
@@ -266,13 +271,13 @@ async function sendNotification(type, order) {
     };
 
     const sendRequest = async (requestData) => {
-        try{
+        try {
             await makeRequest(requestData);
         } catch (error) {
-            if(error.response && error.response.status == 429) {
+            if (error.response && error.response.status == 429) {
                 retryQueue.push(requestData);
             } else {
-                await dError('Notification has not been sent. Error code: ' + error.response.status);
+                await dError('Notification has not been sent. Error code: ' + error.response);
             }
         }
     };
@@ -307,25 +312,13 @@ async function getMessageByType(type, order) {
 
 async function startListeners() {
     await putInfo(await getDateTime(), 'Starting listener: Wildberries');
-    let date = await getDate();
-    let botLink = `https://api.telegram.org/bot6778620514:AAEV8vgFtR2usuNpyhnTOFMzp6_lx--NbEA/sendMessage`;
-    const { data } = await axios.post(botLink, {
-        chat_id: '702801778',
-        text: `Бот уведомлений Wilbdberries запущен, текущая дата: ${date}`,
-        parse_mode: 'HTML'
-    }, {
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
-        }
-    });
-
-    // console.log(data);
     await listenWildberries(eventEmmiter, db, todayOrdersInMarket, todayCancelledInMarket, todayRefundsInMarket, todaySalesInMarket);
 }
 
 eventEmmiter.on('new order', async function (order) {
     await updateOrder(db, order.srid, 'notified', true);
     await sendNotification('Заказ - Клиентский', order);
+    todayOrdersInMarket++;
 });
 
 eventEmmiter.on('new cancellation', async function (order) {
@@ -343,9 +336,8 @@ eventEmmiter.on('new refund', async function (order) {
     await updateOrder(db, order.srid, 'notified', true);
 });
 
-eventEmmiter.on('daily report', async function (previousDate) {
-    let stats = await countDailyStats(previousDate);
-    let message = await formDailyReport(stats);
+eventEmmiter.on('daily stats', async function (reportDate, ordersCount, gross) {
+    let message = await formDailyReport(reportDate, ordersCount, gross);
     let botLink = `https://api.telegram.org/bot6778620514:AAEV8vgFtR2usuNpyhnTOFMzp6_lx--NbEA/sendMessage`;
     const { data } = await axios.post(botLink, {
         chat_id: '-1001999915316',
@@ -370,35 +362,9 @@ await init();
 await startListeners();
 bot.launch();
 
-eventEmmiter.emit('daily report');
-
 process.once('SIGINT', async () => {
-    // let botLink = `https://api.telegram.org/bot6778620514:AAEV8vgFtR2usuNpyhnTOFMzp6_lx--NbEA/sendMessage`;
-    // const { data } = await axios.post(botLink, {
-    //     chat_id: '-1001999915316',
-    //     text: "Сервис уведомлений Wilberries временно приостановлен - ведутся технические работы. Вы получите уведомление о возобновлении работы сервиса",
-    //     parse_mode: 'HTML'
-    // }, {
-    //     headers: {
-    //         'Content-Type': 'application/x-www-form-urlencoded'
-    //     }
-    // });
-
-    // console.log(data);
     bot.stop('SIGINT')
 });
 process.once('SIGTERM', async () => {
-    // let botLink = `https://api.telegram.org/bot6778620514:AAEV8vgFtR2usuNpyhnTOFMzp6_lx--NbEA/sendMessage`;
-    // const { data } = await axios.post(botLink, {
-    //     chat_id: '-1001999915316',
-    //     text: "При попытке выполнить запрос произошла ошибка, но мы уже работаем над её устранением.",
-    //     parse_mode: 'HTML'
-    // }, {
-    //     headers: {
-    //         'Content-Type': 'application/x-www-form-urlencoded'
-    //     }
-    // });
-
-    // console.log(data);
     bot.stop('SIGTERM')
 });

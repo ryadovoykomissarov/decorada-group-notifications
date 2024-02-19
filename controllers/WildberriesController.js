@@ -9,9 +9,8 @@ const ordersEndpoit = "https://statistics-api.wildberries.ru/api/v1/supplier/ord
 const salesEndpoit = "https://statistics-api.wildberries.ru/api/v1/supplier/sales";
 const wbToken = "eyJhbGciOiJFUzI1NiIsImtpZCI6IjIwMjMxMjI1djEiLCJ0eXAiOiJKV1QifQ.eyJlbnQiOjEsImV4cCI6MTcyMzYwNzkyMSwiaWQiOiJlNGY4MWUyMC01NTU5LTQ2ZGEtOTA0OC00MzIxMWIwYzcxYjIiLCJpaWQiOjUzODE3NTY2LCJvaWQiOjIyMjEzNiwicyI6NTIsInNpZCI6IjUzNTlmM2FhLWNlNWUtNDA4Ni04MDliLTcxMDQ3NmIzN2QxYyIsInQiOmZhbHNlLCJ1aWQiOjUzODE3NTY2fQ.iO_7EsuWLLFZAWJitPl-0d6xxE_s-kmcbD3ENg2-2A79hf1oQcxwV40_rvKkHY2xNZOfZchNUiDYIbctPwG-IA";
 
-export const getOrders = async () => {
-    const startDate = await getDateWithDashes();
-    let orders;
+export const getOrders = async (date) => {
+    let orders = [];
     let retryCount = 0;
     const maxRetries = 3;
     const retryDelay = 120000;
@@ -20,7 +19,7 @@ export const getOrders = async () => {
         const config = {
             method: 'get',
             maxBodyLength: Infinity,
-            url: `https://statistics-api.wildberries.ru/api/v1/supplier/orders?dateFrom=${startDate}`,
+            url: `https://statistics-api.wildberries.ru/api/v1/supplier/orders?dateFrom=${date}`,
             headers: { 
                 'Authorization': 'Bearer eyJhbGciOiJFUzI1NiIsImtpZCI6IjIwMjMxMjI1djEiLCJ0eXAiOiJKV1QifQ.eyJlbnQiOjEsImV4cCI6MTcyMzYwNzkyMSwiaWQiOiJlNGY4MWUyMC01NTU5LTQ2ZGEtOTA0OC00MzIxMWIwYzcxYjIiLCJpaWQiOjUzODE3NTY2LCJvaWQiOjIyMjEzNiwicyI6NTIsInNpZCI6IjUzNTlmM2FhLWNlNWUtNDA4Ni04MDliLTcxMDQ3NmIzN2QxYyIsInQiOmZhbHNlLCJ1aWQiOjUzODE3NTY2fQ.iO_7EsuWLLFZAWJitPl-0d6xxE_s-kmcbD3ENg2-2A79hf1oQcxwV40_rvKkHY2xNZOfZchNUiDYIbctPwG-IA'
             }
@@ -30,9 +29,9 @@ export const getOrders = async () => {
             const response = await axios.request(config);
             orders = response.data;
         } catch (error) {
-            if (error.response && error.response.status === 429 && retryCount < maxRetries) {
+            if (error.response && retryCount < maxRetries) {
                 retryCount++;
-                dInfo(`Received 429 error. Retrying (${retryCount})/(${maxRetries})`);
+                dInfo(`Received ${error.response.status} error. Retrying (${retryCount})/(${maxRetries})`);
                 await new Promise(resolve => setTimeout(resolve, retryDelay));
                 await fetchData();
             } else {

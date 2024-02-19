@@ -32,5 +32,6 @@ export const getDateWithDashes = async () => {
 export const getDateTime = async () => {
     const now = new Date();
     const localizedDate = now.toLocaleString();
+    // M/dd/yyyy
     return localizedDate;
 }

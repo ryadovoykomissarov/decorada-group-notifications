@@ -7,7 +7,8 @@ export const checkDocumentExists = async (db, collectionName, id) => {
     try{
         const docRef = doc(collection(db, collectionName), id);
         const docSnap = await getDoc(docRef);
-        return docSnap.exists;
+        console.log(docSnap.exists());
+        return docSnap.exists(); 
     } catch (error) {
         dError('Error checking document existence: ' + error);
         return false;
@@ -15,8 +16,8 @@ export const checkDocumentExists = async (db, collectionName, id) => {
 }
 
 export const getOrders = async (db) => {
+    let result = [];
     try {
-        let result = [];
         const ordersCollection = collection(db, 'orders');
         const ordersSnapshot = await getDocs(ordersCollection).catch((error) => console.log(error));
         ordersSnapshot.forEach(order => {
@@ -25,7 +26,7 @@ export const getOrders = async (db) => {
         return result;
     } catch (e) {
         await putError(await getDateTime(), 'Error while fetching document from Firebase. ' + e);
-        return null;
+        return result;
     }
 }
 
@@ -45,7 +46,7 @@ export const getOrdersByDate = async (db, date) => {
         return result;
     } catch (e) {
         await putError(await getDateTime(), 'Error while filtering orders by date. ' + e);
-        return resul;
+        return result;
     }
 }
 

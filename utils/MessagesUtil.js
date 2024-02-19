@@ -163,9 +163,9 @@ export const formRefundMessage = async (sale) => {
             regions;   
 }
 
-export const formDailyReport = async (stats) => {
-    let header = '<b>Отчет за ' + stats.reportDate + '</b>\n\n';
-    let orders = 'Всего заказов за сутки: ' + stats.orders + '\n';
-    let total = 'На сумму: ' + stats.finishedPrice + '\n';
+export const formDailyReport = async (reportDate, ordersCount, gross) => {
+    let header = '<b>Отчет за ' + reportDate + '</b>\n\n';
+    let orders = 'Всего заказов за сутки: ' + ordersCount + '\n';
+    let total = 'На сумму: ' + gross + '\n';
     return header + orders + total;
 }
