@@ -44,6 +44,7 @@ export const listen = async (eventEmitter, database) => {
     let currentDate = moment().format().split('T')[0];
 
     const monitorDate = async () => {
+        dInfo('Monitoring date change...');
         const newDate = moment().format().split('T')[0];
         if(newDate !== currentDate) {
             dInfo('System date has changed. Emitting counters reset and stats report');
