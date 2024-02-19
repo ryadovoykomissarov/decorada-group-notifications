@@ -54,9 +54,13 @@ export const listen = async (eventEmitter, database) => {
             let gross = 0;
             let marketplaceOrders = await getOrders(previousDate);
             marketplaceOrders.forEach((order) => {
-                if(order.type == 'Клиентский' && order.date.split('T')[0 == previousDate] && order.isCancel !== 'true') {
+                if(order.orderType == 'Клиентский' && order.date.split('T')[0]) {
                     ordersPerDayCount++;
                     gross+= order.finishedPrice;
+
+                    if(order.isCancel == 'true' || order.isCancel == true) {
+                        gross = gross-order.finishedPrice;
+                    }
                 }
             });
 
