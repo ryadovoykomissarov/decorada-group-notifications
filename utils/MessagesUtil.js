@@ -1,26 +1,46 @@
+import { db } from "../index.js";
+import { getOrdersByDate } from "../model/OrderModel.js";
+import { getProductLinkByArticle } from "../model/ProductModel.js";
 import { shortenUtc } from "./DateTimeUtil.js";
 
 export const formOrdersMessage = async (order) => {
     let date = shortenUtc(order.date);
-    let header = 'Новый <b>заказ</b>. \n\n';
+    let header = '&#10133 Новый <b>заказ</b>. \n\n';
 
     let orderType = '<b>Тип заказа:</b> ' + order.orderType + "\n";
     let orderId = '<b>Идентификатор заказа:</b> ' + order.srid + "\n";
-    let dateInMessage = '<b>Дата:</b> ' + date + "\n\n"; 
+    let dateInMessage = '<b>Дата:</b> ' + date + "\n";
     
+    let todayCount = 0;
+    let orders = await getOrdersByDate(db, date);
+    orders.forEach((data) => {
+        if(data.nmId == order.nmId && data.orderType == 'Клиентский') 
+        todayCount++;
+    });
+
+    let today = '<b>За сегодня таких:</b> ' + todayCount + '\n\n'; 
+    
+    let orderLink = await getProductLinkByArticle(db, order.nmId);
+
     let sellerArticle = '<b>Артикул продавца:</b> ' + order.supplierArticle + '\n';
-    let nmId = '<b>Артикул Wildberries:</b> ' + order.nmId + '\n';
+    let nmId = '<b>Артикул Wildberries:</b> ' + `<a href="${orderLink}">${order.nmId}</a>` + '\n';
     let barcode = order.barcode ? '<b>Баркод: </b> ' + order.barcode + '\n\n' : 'Баркод: </b> -' + '\n\n';
-    
-    let shop = '<b>Магазин:</b> ' + order.brand + '\n';
+
+    let shopLink = '';
+    if(order.brand == 'RADA-decor') {
+        shopLink = 'https://www.wildberries.ru/brands/rada-decor';
+    } else if(order.brand == 'RADA-style') {
+        shopLink = 'https://www.wildberries.ru/brands/rada-style-351956';
+    }
+
+    let shop = `<b>Магазин:</b> <a href="${shopLink}">${order.brand}</a>` + '\n';
     let category = '<b>Категория:</b> ' + order.category + '\n';
-    let brand = '<b>Бренд:</b> ' + order.brand + '\n\n';
 
 
     let totalPrice = '<b>Цена без скидок:</b> ' + order.totalPrice + ' руб.\n'
     let discountPercent = '<b>Скидка продавца:</b> ' + order.discountPercent + '%\n'
     let spp = '<b>Скидка Wildberries:</b> ' + order.spp + '%\n'
-    let finishedPrice = '<b>Фактическая цена с учетом всех скидок</b> (к взиманю с покупателя): ' + order.finishedPrice + ' руб.\n'
+    let finishedPrice = '&#128178 <b>Фактическая цена с учетом всех скидок</b> (к взиманю с покупателя): ' + order.finishedPrice + ' руб.\n'
     let priceWithDisc = '<b>Цена со скидкой продавца:</b> ' + order.priceWithDisc + ' руб.\n\n'
     
     let regions = '<b>Регион:</b> ' + order.countryName + ', ' + order.oblastOkrugName + ', ' + order.regionName + ' обл.\n<b>Склад отгрузки:</b> ' + order.warehouseName;
@@ -29,6 +49,7 @@ export const formOrdersMessage = async (order) => {
             orderId +
             dateInMessage + 
             sellerArticle + 
+            today +
             nmId + 
             barcode + 
             shop + 
@@ -44,41 +65,46 @@ export const formOrdersMessage = async (order) => {
 
 export const formCancellationMessage = async (order) => {
     let date = shortenUtc(order.date);
-    let header = '<b>Отмена заказа</b>. \n\n';
+    let header = '&#10134 <b>Отмена заказа</b>. \n\n';
 
     let orderType = '<b>Причина отмены:</b> ' + order.orderType + "\n";
     let dateInMessage = '<b>Дата:</b> ' + date + "\n\n"; 
+
+    let todayCount = 0;
+    let orders = await getOrdersByDate(db, date);
+    orders.forEach((data) => {
+        if(data.nmId == order.nmId && data.orderType !== 'Клиентский') 
+        todayCount++;
+    });
+
+    let today = '<b>За сегодня таких:</b> ' + todayCount + '\n\n'; 
+
+    let orderLink = await getProductLinkByArticle(db, order.nmId);
     
     let sellerArticle = '<b>Артикул продавца:</b> ' + order.supplierArticle + '\n';
-    let nmId = '<b>Артикул Wildberries:</b> ' + order.nmId + '\n';
+    let nmId = '<b>Артикул Wildberries:</b> ' + `<a href="${orderLink}">${order.nmId}</a>` + '\n';
     let barcode = order.barcode ? '<b>Баркод: </b> ' + order.barcode + '\n\n' : 'Баркод: </b> -' + '\n\n';
-    
-    let shop = '<b>Магазин:</b> ' + order.brand + '\n';
+
+    let shopLink = '';
+    if(order.brand == 'RADA-decor') {
+        shopLink = 'https://www.wildberries.ru/brands/rada-decor';
+    } else if(order.brand == 'RADA-style') {
+        shopLink = 'https://www.wildberries.ru/brands/rada-style-351956';
+    }
+
+    let shop = `<b>Магазин:</b> <a href="${shopLink}">${order.brand}</a>` + '\n';
     let category = '<b>Категория:</b> ' + order.category + '\n';
-    let brand = '<b>Бренд:</b> ' + order.brand + '\n\n';
-
-
-    let totalPrice = '<b>Цена без скидок:</b> ' + order.totalPrice + ' руб.\n'
-    let discountPercent = '<b>Скидка продавца:</b> ' + order.discountPercent + '%\n'
-    let spp = '<b>Скидка Wildberries:</b> ' + order.spp + '%\n'
-    let finishedPrice = '<b>Фактическая цена с учетом всех скидок</b> (к взиманю с покупателя): ' + order.finishedPrice + ' руб.\n'
-    let priceWithDisc = '<b>Цена со скидкой продавца:</b> ' + order.priceWithDisc + ' руб.\n\n'
     
     let regions = '<b>Регион:</b> ' + order.countryName + ', ' + order.oblastOkrugName + ', ' + order.regionName + ' обл.\n<b>Склад отгрузки:</b> ' + order.warehouseName;
     return header + 
             orderType + 
             dateInMessage + 
             sellerArticle + 
+            today +
             nmId + 
             barcode + 
             shop + 
             category + 
-            brand + 
-            totalPrice + 
-            discountPercent + 
-            spp + 
-            finishedPrice + 
-            priceWithDisc + 
             regions;
 }
 
@@ -95,14 +121,6 @@ export const formSalesMessage = async (sale) => {
      
     let category = '<b>Категория:</b> ' + sale.category + '\n';
     let brand = '<b>Бренд:</b> ' + sale.brand + '\n\n';
-
-
-    let totalPrice = '<b>Цена без скидок:</b> ' + sale.totalPrice + ' руб.\n'
-    let discountPercent = '<b>Скидка продавца:</b> ' + sale.discountPercent + '%\n'
-    let spp = '<b>Скидка Wildberries:</b> ' + sale.spp + '%\n'
-    let finishedPrice = '<b>Фактическая цена с учетом всех скидок</b> (к взиманю с покупателя): ' + sale.finishedPrice + ' руб.\n'
-    let priceWithDisc = '<b>Цена со скидкой продавца:</b> ' + sale.priceWithDisc + ' руб.\n\n'
-    let forPay = '<b>К перечислению продавцу</b>: ' + sale.forPay + ' руб.\n'
     
     let regions = '<b>Регион:</b> ' + sale.countryName + ', ' + sale.oblastOkrugName + ', ' + sale.regionName + ' обл.\n<b>Склад отгрузки:</b> ' + sale.warehouseName;
     return header + 
@@ -113,12 +131,6 @@ export const formSalesMessage = async (sale) => {
             barcode +  
             category + 
             brand + 
-            totalPrice + 
-            discountPercent + 
-            spp + 
-            finishedPrice + 
-            priceWithDisc + 
-            forPay +
             regions;
 }
 
@@ -166,6 +178,6 @@ export const formRefundMessage = async (sale) => {
 export const formDailyReport = async (reportDate, ordersCount, gross) => {
     let header = '<b>Отчет за ' + reportDate + '</b>\n\n';
     let orders = 'Всего заказов за сутки: ' + ordersCount + '\n';
-    let total = 'На сумму: ' + gross + '\n';
+    let total = 'На сумму: ' + gross + ' руб.\n';
     return header + orders + total;
 }

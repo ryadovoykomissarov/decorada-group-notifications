@@ -7,7 +7,6 @@ export const checkDocumentExists = async (db, collectionName, id) => {
     try{
         const docRef = doc(collection(db, collectionName), id);
         const docSnap = await getDoc(docRef);
-        console.log(docSnap.exists());
         return docSnap.exists(); 
     } catch (error) {
         dError('Error checking document existence: ' + error);

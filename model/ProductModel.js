@@ -14,6 +14,20 @@ export const getProductPictureByArticle = async (db, article) => {
     return imageLink;
 }
 
+export const getProductLinkByArticle = async (db, article) => {
+    let uri;
+    const productsCollection = collection(db, 'products');
+    const productsSnapshot = await getDocs(productsCollection);
+    productsSnapshot.forEach(product => {
+        let productData = product.data();
+        if(productData.article==article) {
+            uri = productData.uri;
+            return uri;
+        }
+    })
+    return uri;
+}
+
 export const getProducts = async (db) => {
     try {
         let result = [];

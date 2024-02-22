@@ -14,8 +14,6 @@ import axios from "axios";
 import axiosThrottle from "axios-request-throttle";
 import { putInfo } from "./model/LogModel.js";
 import express from 'express';
-import { stat } from "fs";
-import { countDailyStats } from "./utils/StatsUtil.js";
 import { dError, dInfo } from "./utils/Logger.js";
 import moment from "moment";
 
@@ -297,9 +295,9 @@ async function sendNotification(type, order) {
 
 async function getMessageByType(type, order) {
     switch (type) {
-        case 'Заказ - Клиентский':
+        case 'Клиентский':
             return await formOrdersMessage(order);
-        case 'Заказ - Отмена':
+        case 'Возврат Брака' || 'Принудительный возврат' || 'Возврат обезлички' || 'Возврат Неверного Вложения' || 'Возврат Продавца':
             return await formCancellationMessage(order);
         case 'Продажа - Клиентский':
             return await formSalesMessage(order);
@@ -317,7 +315,7 @@ async function startListeners() {
 
 eventEmmiter.on('new order', async function (order) {
     await updateOrder(db, order.srid, 'notified', true);
-    await sendNotification('Заказ - Клиентский', order);
+    await sendNotification(order.type, order);
     todayOrdersInMarket++;
 });
 
