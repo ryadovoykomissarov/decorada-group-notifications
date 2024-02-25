@@ -1,11 +1,14 @@
 import { collection, doc, getDoc, getDocs, setDoc, updateDoc } from "@firebase/firestore";
+import { salesCache } from "../index.js";
 
 export const getSales = async (db) => {
     try {
         let result = [];
         const salesCollection = collection(db, 'sales');
         const salesSnapshot = await getDocs(salesCollection).catch((error) => console.log(error));
-        salesSnapshot.forEach(order => {
+        salesSnapshot.forEach(async (order) => {
+            await salesCache.set(order.data().srid, order.data());
+            await dInfo(`Populated sales cache with document ${order.data().srid}.`);
             result.push(order.data());
         })
         return result;

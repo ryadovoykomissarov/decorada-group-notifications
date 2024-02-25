@@ -1,7 +1,8 @@
 import moment from "moment";
-import { getOrders } from "../controllers/WildberriesController.js";
+import { getOrders, getSales } from "../controllers/WildberriesController.js";
 import { checkDocumentExists, putOrder } from "../model/OrderModel.js";
 import { dInfo } from "../utils/Logger.js";
+import { putSale } from "../model/SalesModel.js";
 
 export const listen = async (eventEmitter, database) => {
     setInterval(() => iterate(), 120000);
@@ -12,6 +13,7 @@ export const listen = async (eventEmitter, database) => {
         let currentDate = moment().format();
         const requestFilter = currentDate.split('T')[0];
         let marketplaceData = await getOrders(requestFilter);
+        let marketplaceSales = await getSales(requestFilter);
 
         const processDocument = async (data) => {
             let exists = await checkDocumentExists(database, 'orders', data.srid);
@@ -23,11 +25,33 @@ export const listen = async (eventEmitter, database) => {
         }
 
         const processDocumentWithTimeout = async (documents) => {
+            let index = 0;
             for (const data of documents) {
+                index++;
+                console.log(`Processing orders with timeout of 1 minute. ${index}/${documents.length}`);
                 await processDocument(data);
                 await new Promise(resolve => setTimeout(resolve, 60000));
             }
         };
+
+        const processSale = async (data) => {
+            let exists = await checkDocumentExists(database, 'sales', data.srid);
+            if(!exists) {
+                await putSale(database, data);
+                eventEmitter.emit('new sale', data);
+                dInfo('New sale event emitted. Sale srid: ' + data.srid);
+            }
+        }
+
+        const processSaleWithTimeout = async (documents) => {
+            let index = 0;
+            for (const data of documents) {
+                index++;
+                console.log(`Processing orders with timeout of 1 minute. ${index}/${documents.length}`);
+                await processSale(data);
+                await new Promise(resolve => setTimeout(resolve, 60000));
+            }
+        }
 
         let matchingOrders = [];
         marketplaceData.forEach(async (order) => {
@@ -36,7 +60,16 @@ export const listen = async (eventEmitter, database) => {
             }
         });
 
+        let mathcingSales = [];
+        marketplaceSales.forEach(async (sale) => {
+            if(sale.date.split('T')[0] == requestFilter) {
+                mathcingSales.push(sale);
+            }
+        })
+
+
         await processDocumentWithTimeout(matchingOrders);
+        await processSaleWithTimeout(mathcingSales);
     }
 
     setInterval(() => monitorDate(), 1000);

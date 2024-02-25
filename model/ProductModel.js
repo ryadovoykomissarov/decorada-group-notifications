@@ -1,4 +1,4 @@
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDoc, getDocs } from "firebase/firestore";
 
 export const getProductPictureByArticle = async (db, article) => {
     let imageLink;
@@ -12,6 +12,15 @@ export const getProductPictureByArticle = async (db, article) => {
         }
     })
     return imageLink;
+}
+
+export const getProductByArticle = async (db, article) => {
+    let productName;
+    const productsCollection = collection(db, 'products');
+    const productsSnapshot = await getDocs(productsCollection);
+    productsSnapshot.forEach(product => {
+        productData = product.data();
+    })
 }
 
 export const getProductLinkByArticle = async (db, article) => {

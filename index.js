@@ -5,17 +5,18 @@ import { initializeConnection } from "./firebase.js";
 import { listen as listenWildberries } from "./listeners/WildberriesListener.js";
 import { getProductPictureByArticle } from "./model/ProductModel.js";
 import { formCancellationMessage, formDailyReport, formOrdersMessage, formSalesMessage } from "./utils/MessagesUtil.js";
-import { checkCancellationInDatabase, putCancellation } from "./model/CancellationModel.js";
-import { checkSalesInDatabase, putSale, updateSale } from "./model/SalesModel.js";
+import { putSale, updateSale } from "./model/SalesModel.js";
 import { EventEmitter } from "events";
 import { Telegraf } from "telegraf";
-import { checkRefundInDatabase, putRefund } from "./model/RefundModel.js";
 import axios from "axios";
 import axiosThrottle from "axios-request-throttle";
 import { putInfo } from "./model/LogModel.js";
 import express from 'express';
 import { dError, dInfo } from "./utils/Logger.js";
 import moment from "moment";
+import NodeCache from "node-cache";
+export let ordersCache = undefined;
+export let salesCache = undefined;
 
 const app = express();
 let bot_token = '6778620514:AAEV8vgFtR2usuNpyhnTOFMzp6_lx--NbEA';
@@ -26,10 +27,6 @@ let todayOrdersInMarket = 0;
 let todayCancelledInMarket = 0;
 let todayRefundsInMarket = 0;
 let todaySalesInMarket = 0;
-let ordersIndexes = [];
-let cancellationIndexes = [];
-let salesIndexes = [];
-let refundsIndexes = [];
 
 const firebaseConfig = {
     apiKey: "AIzaSyBtUtTtJjEF0kqnpYOlykjPbuOETy4a0aI",
@@ -45,6 +42,10 @@ export const eventEmmiter = new EventEmitter();
 export const db = await initializeConnection(firebaseConfig);
 
 async function init() {
+    await putInfo(await getDateTime(), 'Initializing orders cache object');
+    ordersCache = new NodeCache();
+    await putInfo(await getDateTime(), 'Initializing sales cache object');
+    salesCache = new NodeCache();
     await putInfo(await getDateTime(), 'Matching data on order startup');
     await matchData();
     await putInfo(await getDateTime(), 'Data has been matched, starting listeners');
@@ -53,7 +54,7 @@ async function init() {
 async function matchData() {
     await matchOrders();
     // await matchCancelled();
-    // await matchSales();
+    await matchSales();
     // await matchRefunds();
 }
 
@@ -61,11 +62,12 @@ async function matchOrders() {
     let currentDate = moment().format();
     const requestFilter = currentDate.split('T')[0];
     let marketplaceData = await getMarketplaceOrders(requestFilter);
-
     const processDocument = async (data) => {
-        let exists = await checkDocumentExists(db, 'orders', data.srid);
+        let exists = await checkDocumentExists(db, 'orders', data.srid, ordersCache);
         if (!exists) {
             await putOrder(db, data);
+            dInfo('Populating orders cache with new object: ' + data.srid);
+            ordersCache.set(data.srid, data, 24*60*60*1000);
             eventEmmiter.emit('new order', data);
             dInfo('New order event emitted. Order srid: ' + data.srid);
         }
@@ -73,6 +75,7 @@ async function matchOrders() {
 
     const processDocumentWithTimeout = async (documents) => {
         for (const data of documents) {
+            console.log('Processing documents with timeout on startup.')
             await processDocument(data);
             await new Promise(resolve => setTimeout(resolve, 60000));
         }
@@ -88,163 +91,39 @@ async function matchOrders() {
     await processDocumentWithTimeout(matchingOrders);
 }
 
-async function matchCancelled() {
-    let marketplaceOrders = await getOrdersByTypeFromStub('Отмена');
-    todayCancelledInMarket = await countTodayOrdersInMarket(marketplaceOrders, 'Отмена');
-
-    let newOrders = [];
-    marketplaceOrders.forEach(async order => {
-        let exists = await checkCancellationInDatabase(db, order.srid);
-        if (exists) newOrders.push(order);
-    });
-
-    newOrders.forEach(async order => {
-        await sendNotification('Заказ - Отмена', order);
-        await updateOrder(db.order.srid, 'notified', true);
-        await putCancellation(db, order);
-    });
-}
-
 async function matchSales() {
-    let marketplaceSales = await getSalesByTypeFromStub('Клиентский');
-    todaySalesInMarket = await countTodaySalesInMarket(marketplaceSales, 'Клиентский');
+    let currentDate = moment().format();
+    const requestFilter = currentDate.split('T')[0];
+    let marketplaceData = await getMarketplaceSales(requestFilter);
 
-    let newSales = [];
-    marketplaceSales.forEach(async (sale) => {
-        let exists = await checkSalesInDatabase(db, sale.srid);
-        if (exists) newSales.push(sale)
+    const processDocument = async (data) => {
+        let exists = await checkDocumentExists(db, 'sales', data.srid, salesCache);
+        if (!exists) {
+            dInfo('Populating sales cache with new object: ' + id);
+            await salesCache.set(data.srid, data, 24*60*60*1000);
+            await putSale(db, data);
+            eventEmmiter.emit('new sale', data);
+            dInfo('New sale emitted. Order srid: ' + data.srid);
+        }
+    }
+
+    const processDocumentWithTimeout = async (documents) => {
+        for (const data of documents) {
+            console.log('Processing documents with timeout on startup.')
+            await processDocument(data);
+            await new Promise(resolve => setTimeout(resolve, 60000));
+        }
+    };
+
+    let matchingSales = [];
+    marketplaceData.forEach(async (sale) => {
+        if(sale.date.split('T')[0] == requestFilter) {
+            matchingSales.push(sale);
+        }
     });
-
-    newSales.forEach(async (sale) => {
-        await sendNotification("Продажа - Клиентский", sale)
-        await updateSale(db, sale.srid, 'notified', true);
-        await putSale(db, sale);
-    })
-}
-
-async function matchRefunds() {
-    let marketplaceSales = await getSalesByTypeFromStub('Возврат');
-    todaySalesInMarket = await countTodaySalesInMarket(marketplaceSales, 'Возврат');
-
-    let newSales = [];
-    marketplaceSales.forEach(async (sale) => {
-        let exists = await checkRefundInDatabase(db, sale.srid);
-        if (exists) newSales.push(sale);
-    })
-
-    newSales.forEach(async (sale) => {
-        await sendNotification("Продажа - Возврат", sale)
-        await updateSale(db, sale.srid, 'notified', true);
-        await putRefund(db, sale);
-    })
-}
-
-async function getOrdersByTypeFromStub(type) {
-    let currentDate = moment().format().split('T')[0];
-    let marketplaceOrders = await getMarketplaceOrders(currentDate);
-
-    if (type == 'Клиентский') {
-        let orders = [];
-        marketplaceOrders.forEach(order => {
-            if (order.orderType == 'Клиентский') {
-                orders.push(order);
-            }
-        })
-
-        return orders;
-    } else {
-        let orders = [];
-        marketplaceOrders.forEach(order => {
-            if (order.orderType !== 'Клиентский') {
-                orders.push(order);
-            }
-        })
-
-        return orders;
-    }
-}
-
-async function getSalesByTypeFromStub(type) {
-    let marketplaceSales = await getMarketplaceSales();
-    if (type == 'Клиентский') {
-        let sales = [];
-        marketplaceSales.forEach(sale => {
-            if (sale.orderType == 'Клиентский') {
-                sales.push(sale);
-            }
-        })
-        return sales;
-    } else {
-        let sales = [];
-        marketplaceSales.forEach(sale => {
-            if (sale.orderType !== 'Клиентский') {
-                sales.push(sale);
-            }
-        })
-        return sales;
-    }
-}
-
-async function countTodaySalesInMarket(marketplaceSales, type) {
-    let currentDate = await getDate();
-
-    if (type == 'Клиентский') {
-        let res = 0;
-        marketplaceSales.forEach(async (order, index) => {
-            let orderDate = shortenUtc(order.date);
-            if (orderDate == currentDate) {
-                if (order.orderType == 'Клиентский') {
-                    todaySalesInMarket++;
-                    salesIndexes.push(index);
-                }
-            }
-        });
-        return res;
-    } else {
-        let res = 0;
-        marketplaceSales.forEach(async (order, index) => {
-            let orderDate = shortenUtc(order.date);
-            if (orderDate == currentDate) {
-                if (order.orderType !== 'Клиентский') {
-                    todaySalesInMarket++;
-                    refundsIndexes.push(index);
-                }
-            }
-        });
-        return res;
-    }
-}
-
-async function countTodayOrdersInMarket(marketplaceOrders, type) {
-    let currentDate = await getDate();
-
-    if (type == 'Клиентский') {
-        let res = 0;
-        marketplaceOrders.forEach(async (order, index) => {
-            let orderDate = shortenUtc(order.date);
-            if (orderDate == currentDate) {
-                if (order.orderType == 'Клиентский') {
-                    ordersIndexes.push(index);
-                    res++;
-                }
-            }
-        });
-        return res;
-    } else {
-        let res = 0;
-        marketplaceOrders.forEach(async (order, index) => {
-            let orderDate = shortenUtc(order.date);
-            let lastChangedDate = shortenUtc(order.lastChangeDate);
-            if (orderDate == currentDate || lastChangedDate == currentDate) {
-                if (order.orderType !== 'Клиентский') {
-                    todayOrdersInMarket++;
-                    cancellationIndexes.push(index);
-                }
-            }
-        });
-        return res;
-    }
-}
+    
+    await processDocumentWithTimeout(matchingSales);
+};
 
 async function sendNotification(type, order) {
     let message = await getMessageByType(type, order);
@@ -315,7 +194,7 @@ async function startListeners() {
 
 eventEmmiter.on('new order', async function (order) {
     await updateOrder(db, order.srid, 'notified', true);
-    await sendNotification(order.type, order);
+    await sendNotification(order.orderType, order);
     todayOrdersInMarket++;
 });
 
@@ -355,7 +234,8 @@ app.get('/', (req, res) => {
 const port = 3000;
 app.listen(port, () => {
     console.log('App is running on port ' + port);
-})
+});
+
 await init();
 await startListeners();
 bot.launch();

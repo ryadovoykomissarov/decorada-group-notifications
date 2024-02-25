@@ -1,15 +1,30 @@
 import { collection, getDocs, doc, setDoc, updateDoc, getDoc, query, where } from "firebase/firestore"
-import { getDate, getDateTime, shortenUtc } from "../utils/DateTimeUtil.js";
+import { getDateTime, shortenUtc } from "../utils/DateTimeUtil.js";
 import { putError, putInfo } from "./LogModel.js";
-import { dError, dWarn } from "../utils/Logger.js";
+import { dInfo, dWarn } from "../utils/Logger.js";
+import { ordersCache } from "../index.js";
 
-export const checkDocumentExists = async (db, collectionName, id) => {
+export const checkDocumentExists = async (db, collectionName, id, cachingNode) => {
     try{
-        const docRef = doc(collection(db, collectionName), id);
-        const docSnap = await getDoc(docRef);
-        return docSnap.exists(); 
+        let cachedDocument = await cachingNode.get(id);
+        if(cachedDocument == undefined) {
+            await dInfo(`Cache miss (${collectionName}) on ID ${id}. Handling miss...`);
+            const docRef = doc(collection(db, collectionName), id);
+            const docSnap = await getDoc(docRef);
+            if(docSnap.exists()) {
+                await cachingNode.set(id, docSnap.data(), 24*60*60*1000);
+                await dInfo(`Populated ${collectionName} cache with document ${id}.`);
+                return true;
+            } else {
+                await dInfo(`Nothing to set into ${collectionName} cache by ID ${id}.`);
+                return false; 
+            }
+        } else {
+            await dInfo(`Cache hit (${collectionName}) on ID ${id}.`);
+            return true; 
+        }
     } catch (error) {
-        dError('Error checking document existence: ' + error);
+        await dWarn('Error checking document existence: ' + error);
         return false;
     }
 }
@@ -19,7 +34,9 @@ export const getOrders = async (db) => {
     try {
         const ordersCollection = collection(db, 'orders');
         const ordersSnapshot = await getDocs(ordersCollection).catch((error) => console.log(error));
-        ordersSnapshot.forEach(order => {
+        ordersSnapshot.forEach(async (order) => {
+            await ordersCache.set(order.data().srid, order.data());
+            await dInfo(`Populated orders cache with document ${order.data().srid}.`);
             result.push(order.data());
         })
         return result;
@@ -40,6 +57,28 @@ export const getOrdersByDate = async (db, date) => {
                 if (orderDate == date) {
                     result.push(order)
                 }
+            }
+        })
+        return result;
+    } catch (e) {
+        await putError(await getDateTime(), 'Error while filtering orders by date. ' + e);
+        return result;
+    }
+}
+
+export const getOrdersInPeriod = async (db, dates) => {
+    try {
+        let result = [];
+        let orders = await getOrders(db);
+        orders.forEach(order => {
+            let orderDate = order.date;
+            if (orderDate) {
+                orderDate = shortenUtc(orderDate);
+                dates.forEach(requiredDate => {
+                    if (orderDate == requiredDate) {
+                        result.push(order)
+                    }
+                })
             }
         })
         return result;
