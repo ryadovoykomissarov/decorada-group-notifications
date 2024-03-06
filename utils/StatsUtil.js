@@ -1,11 +1,10 @@
-import { getOrdersByDate, getOrdersInPeriod } from "../model/OrderModel.js";
-import { db } from "../index.js";
+import { getOrdersByDate} from "../model/OrderModel.js";
 import { getStocksByArticle } from "../controllers/WildberriesController.js";
 
 const statsRange = 5;
 
 export const countDailyStats = async (date) => {
-    let savedOrders = await getOrdersByDate(db, date);
+    let savedOrders = await getOrdersByDate(date);
     let totalFinishedPrice = 0;
 
     savedOrders.forEach(order => {
@@ -39,7 +38,7 @@ export const countStocks = async (date, article) => {
 
 } 
 const countStatsByProducts = async (date) => {
-    const savedOrders = await getOrdersByDate(db, date);
+    const savedOrders = await getOrdersByDate(date);
     const uniqueArticles = new Set(savedOrders.map(order => order.nmId));
     
     const toReturn = [];

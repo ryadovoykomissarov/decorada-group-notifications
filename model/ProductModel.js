@@ -1,64 +1,28 @@
-import { collection, getDoc, getDocs } from "firebase/firestore";
+import { productsStorage } from "../couchdb.js";
 
-export const getProductPictureByArticle = async (db, article) => {
-    let imageLink;
-    const productsCollection = collection(db, 'products');
-    const productsSnapshot = await getDocs(productsCollection);
-    productsSnapshot.forEach(product => {
-        let productData = product.data();
-        if(productData.article==article) {
-            imageLink = productData.image;
-            return imageLink;
-        }
-    })
-    return imageLink;
+export const getProductByArticle = async (article) => {
+    let database = productsStorage;
+    return await database.get(article);
 }
 
-export const getProductByArticle = async (db, article) => {
-    let productName;
-    const productsCollection = collection(db, 'products');
-    const productsSnapshot = await getDocs(productsCollection);
-    productsSnapshot.forEach(product => {
-        productData = product.data();
-    })
+export const getProductLinkByArticle = async (article) => {
+    let product = await getProductByArticle(article); 
+    return product.uri;
 }
 
-export const getProductLinkByArticle = async (db, article) => {
-    let uri;
-    const productsCollection = collection(db, 'products');
-    const productsSnapshot = await getDocs(productsCollection);
-    productsSnapshot.forEach(product => {
-        let productData = product.data();
-        if(productData.article==article) {
-            uri = productData.uri;
-            return uri;
-        }
-    })
-    return uri;
-}
-
-export const getProducts = async (db) => {
-    try {
-        let result = [];
-        const productsCollection = collection(db, 'products');
-        const productsSnapshot = await getDocs(productsCollection).catch((error) => console.log(error));
-        productsSnapshot.forEach(order => {
-            result.push(order.data());
+export const getProducts = async () => {
+    let database = productsStorage;
+    let result = [];
+    const docsList = await database.list().then((body) => {
+        body.rows.forEach((doc) => {
+            result.push(doc);
         })
-        return result;
-    } catch (e) {
-        console.log(e);
-        return null;
-    }
+    })
+    return result;
 }
 
-
-export const putProduct = async (db, order) => {
-    const orderDoc = doc(db, 'products/' + order.article);
-    await setDoc(orderDoc, order)
-        .then(() => {
-            console.log('New product added to Firestore, products collection.');
-        }).catch((error) => {
-            console.error(error);
-        })
+export const putProduct = async (product) => {
+    let database = productsStorage;
+    product._id = product.article;
+    const response = await database.insert(product).catch((e) => console.error('error' + e));
 }
