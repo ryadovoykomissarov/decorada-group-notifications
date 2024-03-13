@@ -218,7 +218,7 @@ bot.on('callback_query', async (ctx) => {
 
         let message = await formArticleReport(date, ctx.callbackQuery.data, count, gross);
 
-        let botLink = config.bot_link;
+        let botLink = config.report_link;
         const { data } = await axios.post(botLink, {
             chat_id: config.chat_id,
             text: message,
