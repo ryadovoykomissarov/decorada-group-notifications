@@ -83,16 +83,18 @@ async function sendNotification(type, order) {
     let pictureLink = product.image;
     let botLink = config.bot_link;
 
-    const keyboard = Markup.inlineKeyboard([
-        Markup.button.callback('Статистика по артикулу', order.nmId)
-    ]);
+    const keyboard = JSON.stringify({
+        inline_keyboard: [
+            [{ text: 'Статистика по артикулу', callback_data: order.nmId }]
+        ]
+    });
 
     const requestData = {
         chat_id: config.chat_id,
         photo: pictureLink,
         caption: message,
         parse_mode: 'HTML',
-        reply_markup: JSON.stringify(keyboard)
+        reply_markup: keyboard
     };
 
     const retryQueue = [];
