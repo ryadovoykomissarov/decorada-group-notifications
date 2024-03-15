@@ -1,5 +1,6 @@
 import { shortenUtc } from "../utils/DateTimeUtil.js";
-import { ordersStorage } from "../couchdb.js";
+import { ordersStorage, ordersWithDatesViewUri } from "../couchdb.js";
+import axios from "axios";
 
 export const getOrders = async () => {
     let database = ordersStorage;
@@ -10,6 +11,32 @@ export const getOrders = async () => {
         })
     });
     return result;
+}
+
+export const filterOrdersByDateViewResult = async (date) => {
+    let uri = ordersWithDatesViewUri;
+    const res = await axios.get(uri);
+
+    let ids = [];
+
+    for (let row of res.data.rows) {
+        let utcDate = row.value;
+        let id = row.id;
+        let shortDate = shortenUtc(utcDate);
+        if (shortDate == date) ids.push(id); 
+    }
+
+    let result = [];
+    for (let id of ids) {
+        result.push(await getOrderById(id));
+    }
+
+    return result;
+}
+
+export const getOrderById = async (id) => {
+    let database = ordersStorage;
+    return await database.get(id);
 }
 
 export const getOrdersByDate = async (date) => {

@@ -1,5 +1,5 @@
 import { getOrders as getMarketplaceOrders, getSales as getMarketplaceSales } from "./controllers/WildberriesController.js";
-import { getOrders as getDbOrders, checkOrderInDatabase, putOrder, updateOrder, getOrdersByDate } from "./model/OrderModel.js";
+import { getOrders as getDbOrders, checkOrderInDatabase, putOrder, updateOrder, getOrdersByDate, filterOrdersByDateViewResult } from "./model/OrderModel.js";
 import { listen as listenWildberries } from "./listeners/WildberriesListener.js";
 import { getProductByArticle } from "./model/ProductModel.js";
 import { formArticleReport, formCancellationMessage, formDailyReport, formOrdersMessage, formSalesMessage } from "./utils/MessagesUtil.js";
@@ -203,13 +203,13 @@ bot.on('callback_query', async (ctx) => {
     try {
         let result = [];
         let date = await getDate()
-        let ordersByArticle = await getOrdersByDate(date);
+        let ordersByArticle = await filterOrdersByDateViewResult(date);
         ordersByArticle.forEach(order => {
             if (order.nmId == ctx.callbackQuery.data) result.push(order);
         });
 
-        // let count = result.length;
-        let count = 0;
+        let count = result.length;
+        // let count = 0;
         let gross = 0;
         result.forEach(order => {
             let forPay = parseFloat(order.finishedPrice);
@@ -220,7 +220,7 @@ bot.on('callback_query', async (ctx) => {
 
         let botLink = config.report_link;
         const { data } = await axios.post(botLink, {
-            chat_id: config.chat_id,
+            chat_id: ctx.chat.id,
             text: message,
             parse_mode: 'HTML'
         }, {
