@@ -152,8 +152,8 @@ async function startListeners() {
 }
 
 eventEmmiter.on('new order', async function (order) {
-    await updateOrder(order.srid, 'notified', true);
     await sendNotification(order.orderType, order);
+    await updateOrder(order.srid, 'notified', true);
 });
 
 eventEmmiter.on('new cancellation', async function (order) {
@@ -173,7 +173,7 @@ eventEmmiter.on('new refund', async function (order) {
 
 eventEmmiter.on('daily stats', async function (reportDate, ordersCount, gross) {
     let message = await formDailyReport(reportDate, ordersCount, gross);
-    let botLink = config.bot_link;
+    let botLink = config.report_link;
     const { data } = await axios.post(botLink, {
         chat_id: config.chat_id,
         text: message,
