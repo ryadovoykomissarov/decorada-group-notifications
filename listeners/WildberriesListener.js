@@ -19,7 +19,7 @@ export const listen = async (eventEmitter) => {
             if (!exists) {
                 await putOrder(data);
                 eventEmitter.emit('new order', data);
-                dInfo('New order event emitted. Order srid: ' + data.srid);
+                dInfo('New order-type event emitted. Order srid: ' + data.srid);
             }
         }
 

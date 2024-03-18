@@ -136,7 +136,11 @@ async function getMessageByType(type, order) {
     switch (type) {
         case 'Клиентский':
             return await formOrdersMessage(order);
-        case 'Возврат Брака' || 'Принудительный возврат' || 'Возврат обезлички' || 'Возврат Неверного Вложения' || 'Возврат Продавца':
+        case 'Возврат Брака': 
+        case 'Принудительный возврат': 
+        case 'Возврат обезлички': 
+        case 'Возврат Неверного Вложения': 
+        case 'Возврат Продавца':
             return await formCancellationMessage(order);
         case 'Продажа - Клиентский':
             return await formSalesMessage(order);
@@ -157,7 +161,7 @@ eventEmmiter.on('new order', async function (order) {
 });
 
 eventEmmiter.on('new cancellation', async function (order) {
-    await sendNotification('Заказ - Отмена', order);
+    await sendNotification(order.orderType, order);
     await updateOrder(order.srid, 'notified', true);
 });
 
