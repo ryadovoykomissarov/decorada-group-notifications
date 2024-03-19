@@ -147,7 +147,7 @@ export const formSalesMessage = async (sale) => {
         regions;
 }
 
-export const formRefundMessage = async (order) => {
+export const formRefundMessage = async (refund) => {
     let date = shortenUtc(refund.date);
     let header = 'Новый <b>возврат</b>. \n\n';
 
@@ -164,7 +164,7 @@ export const formRefundMessage = async (order) => {
     let todayCount = 0;
     let orders = await getOrdersByDate(date);
     orders.forEach((data) => {
-        if (data.nmId == order.nmId && data.orderType !== 'Клиентский')
+        if (data.nmId == refund.nmId && data.orderType !== 'Клиентский')
             todayCount++;
     });
 
@@ -173,7 +173,7 @@ export const formRefundMessage = async (order) => {
     let spp = '<b>Скидка Wildberries:</b> ' + refund.spp + '%\n'
     let finishedPrice = '<b>Фактическая цена с учетом всех скидок</b> (к взиманю с покупателя): ' + refund.finishedPrice + ' руб.\n'
     let priceWithDisc = '<b>Цена со скидкой продавца:</b> ' + refund.priceWithDisc + ' руб.\n\n'
-    let forPay = '<b>К перечислению продавцу</b>: ' + order.forPay + ' руб.\n'
+    let forPay = '<b>К перечислению продавцу</b>: ' + refund.forPay + ' руб.\n'
 
     let regions = '<b>Регион:</b> ' + refund.countryName + ', ' + refund.oblastOkrugName + ', ' + refund.regionName + ' обл.\n<b>Склад отгрузки:</b> ' + refund.warehouseName;
     return header +

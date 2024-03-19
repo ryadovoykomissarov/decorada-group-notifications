@@ -5,3 +5,7 @@ const wildberriesLayer = fork('wildberries.js',{
     detached: false,
     stdio: 'inherit'
 });
+
+wildberriesLayer.on('error', function (err) {
+    console.log('WBLAYER ERROR: ' + err.message);
+});

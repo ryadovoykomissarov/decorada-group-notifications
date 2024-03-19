@@ -138,9 +138,17 @@ ordersSyncer.on('message', function (message) {
     eventEmmiter.emit("new order", message)
 });
 
+ordersSyncer.on('error', function (err) {
+    console.log('OSYNC ERROR: ' + err.message);
+});
+
 const salesSyncer = fork("sales_syncer.js");
-ordersSyncer.on('message', function (message) {
+salesSyncer.on('message', function (message) {
     eventEmmiter.emit("new sale", message)
+});
+
+salesSyncer.on('error', function (err) {
+    console.log('SSYNC ERROR: ' + err.message);
 });
 
 bot.on('callback_query', async (ctx) => {
