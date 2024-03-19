@@ -1,5 +1,4 @@
 import { collection, doc, getDoc, getDocs, setDoc, updateDoc } from "@firebase/firestore";
-import { salesCache } from "../index.js";
 
 export const getSales = async (db) => {
     try {

@@ -98,7 +98,7 @@ export const getChangedOrdersByDate = async (date) => {
 
 export const getSalesByDate = async (date) => {
     let result = [];
-    let sales = getSales();
+    let sales = await getSales();
     sales.forEach(async sale => {
         let orderDate = shortenUtc(sale.date);
         let orderType = sale.orderType;

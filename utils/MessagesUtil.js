@@ -110,7 +110,7 @@ export const formSalesMessage = async (sale) => {
 
 
     let sellerArticle = '<b>Артикул продавца:</b> ' + sale.supplierArticle + '\n';
-    let nmId = '<b>Артикул Wildberries:</b> ' + `<a href="${orderLink}">${order.nmId}</a>` + '\n';
+    let nmId = '<b>Артикул Wildberries:</b> ' + `<a href="${orderLink}">${sale.nmId}</a>` + '\n';
     let barcode = sale.barcode ? '<b>Баркод: </b> ' + sale.barcode + '\n\n' : 'Баркод: </b> -' + '\n\n';
 
     let shopLink = '';
@@ -202,11 +202,19 @@ export const formDailyReport = async (reportDate, ordersCount, gross) => {
     return header + orders + total;
 }
 
-export const formArticleReport = async (date, article, total, gross) => {
-    let header = `Статистика по артикулу ${article} на ${date}\n\n`;
+export const formArticleReport = async (date, article, orders, sales, cancellations, refunds) => {
+    let header = `Статистика по артикулу <b>${article} на ${date}</b>\n\n`;
 
-    let count = `Всего заказано за сутки: ${total} шт.\n`;
-    let money = `На сумму: ${gross} руб.`;
+    let ordersCount = `Заказов за сутки: ${orders.count} шт.\n`;
+    let ordersMoney = `На сумму: ${orders.money} руб.\n\n`;
 
-    return header + count + money;
+    let salesCount = `Продаж за сутки: ${sales.count} шт.\n`;
+    let salesMoney = `На сумму: ${sales.money} руб.\n\n`;
+
+    let cancellationsCount = `Отмененных заказов за сутки: ${cancellations.count} шт.\n`;
+    let cancellationsMoney = `На сумму: ${cancellations.money} руб.\n\n`;
+
+    let refundsCount = `Возвратов товаров за сутки: ${refunds.count} шт.\n`;
+    let refundsMoney = `На сумму: ${refunds.money} руб.\n\n`;
+    return header + ordersCount + ordersMoney + salesCount + salesMoney + cancellationsCount + cancellationsMoney + refundsCount + refundsMoney;
 }

@@ -1,7 +1,7 @@
 {
   "name": "decorada-group-notifications",
-  "version": "1.0.1",
-  "description": "Мониторинг новых заказов на Wildberries",
+  "version": "1.1.0",
+  "description": "Мониторинг Wildberries в отдельном слое. 4 вида уведомлений. Подробная статистика при учете закзов, продаж, возвратов и отмен",
   "main": "index.js",
   "type": "module",
   "scripts": {
