@@ -49,7 +49,7 @@ export const listen = async (eventEmitter) => {
 
 
         await processDocumentWithTimeout(matchingOrders);
-        await processSaleWithTimeout(mathcingSales);
+        await processDocumentWithTimeout(mathcingSales);
     }
 
     setInterval(() => monitorDate(), 1000);
@@ -60,7 +60,7 @@ export const listen = async (eventEmitter) => {
         // dInfo('Monitoring date change...');
         const newDate = moment().format().split('T')[0];
         if(newDate !== currentDate) {
-            dInfo('System date has changed. Emitting counters reset and stats report');
+            console.log(process.pid + ': System date has changed. Emitting counters reset and stats report');
             let previousDate = currentDate;
             currentDate = newDate;
             

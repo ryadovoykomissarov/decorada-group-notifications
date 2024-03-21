@@ -10,9 +10,11 @@ import axiosThrottle from "axios-request-throttle";
 import express from 'express';
 import { getDate } from "./utils/DateTimeUtil.js";
 import config from './config.json' assert { type: "json" };
-import { fork } from "child_process";
+import { fork, spawn } from "child_process";
 export let ordersCache = undefined;
 export let salesCache = undefined;
+
+console.log('PID: ' + process.pid + ' - Wildberries subprocess launched succesfully');
 
 const app = express();
 let bot_token = config.bot_token;
@@ -20,8 +22,10 @@ const bot = new Telegraf(bot_token);
 axiosThrottle.use(axios, { requestsPerSecond: 1 });
 
 export const eventEmmiter = new EventEmitter();
+console.log('PID: ' + process.pid + ' - WB event emitter attached');
 
 async function sendNotification(category, type, order) {
+    console.log('PID: ' + process.pid + ' - sending notification');
     let message = '';
     if (category == "order") {
         message = await getOrderMessageByType(type, order);
@@ -108,15 +112,18 @@ async function getSaleMessageByType(type, order) {
 }
 
 async function startListeners() {
+    console.log('PID: ' + process.pid + ' - launching Wildberries listeners');
     await listenWildberries(eventEmmiter);
 }
 
 eventEmmiter.on('new order', async function (order) {
+    console.log('PID: ' + process.pid + ' - new order event emitted: ' + order.srid);
     await sendNotification("order", order.orderType, order);
     await updateOrder(order.srid, 'notified', true);
 });
 
 eventEmmiter.on('new sale', async function (sale) {
+    console.log('PID: ' + process.pid + ' - new sale event emitted: ' + sale.srid);
     await sendNotification("sale", sale.orderType, sale);
     await updateSale(sale.srid, 'notified', true);
 });
@@ -127,31 +134,64 @@ app.get('/', (req, res) => {
 
 const port = 3000;
 app.listen(port, () => {
-    console.log('App is running on port ' + port);
+    console.log('PID: ' + process.pid + ' - App is running on port ' + port);
 });
 
 await startListeners();
 bot.launch();
 
+console.log('PID: ' + process.pid + ' - Telegram Bot session laucnhed successfully ');
+
 const ordersSyncer = fork("orders_syncer.js");
+console.log('PID: ' + process.pid + ' - Forked order synchronization subprocess' + ordersSyncer.pid);
+
 ordersSyncer.on('message', function (message) {
+    console.log('PID: ' + process.pid + ' - Emitted new message from orders syncer subprocess');
     eventEmmiter.emit("new order", message)
 });
+
+ordersSyncer.on('close', function (msg) {
+    console.log('PID: ' + process.pid + ' - Orders syncer process closed. ' + msg);
+})
+
+ordersSyncer.on('disconnect', function (msg) {
+    console.log('PID: ' + process.pid + ' - Orders syncer process disconnected. ' + msg);
+})
+
+ordersSyncer.on('exit', function (msg) {
+    console.log('PID: ' + process.pid + ' - Orders syncer process exited. ' + msg);
+})
 
 ordersSyncer.on('error', function (err) {
     console.log('OSYNC ERROR: ' + err.message);
 });
 
-const salesSyncer = fork("sales_syncer.js");
+const salesSyncer = fork("sales_syncer.js",);
+console.log('PID: ' + process.pid + ' - Forked sales synchronization subprocess' + salesSyncer.pid);
+
 salesSyncer.on('message', function (message) {
+    console.log('PID: ' + process.pid + ' - Emitted new message from sales syncer subprocess');
     eventEmmiter.emit("new sale", message)
 });
+
+salesSyncer.on('close', function (msg) {
+    console.log('PID: ' + process.pid + ' - Sales syncer process closed. ' + msg);
+})
+
+salesSyncer.on('disconnect', function (msg) {
+    console.log('PID: ' + process.pid + ' - Sales syncer process disconnected. ' + msg);
+})
+
+salesSyncer.on('exit', function (msg) {
+    console.log('PID: ' + process.pid + ' - Sales syncer process exited. ' + msg);
+})
 
 salesSyncer.on('error', function (err) {
     console.log('SSYNC ERROR: ' + err.message);
 });
 
 bot.on('callback_query', async (ctx) => {
+    console.log('PID: ' + process.pid + ' - Callback query emitted, ' + ctx.callbackQuery.id);
     ctx.answerCbQuery(ctx.callbackQuery.id);
     try {
         let orders = [];

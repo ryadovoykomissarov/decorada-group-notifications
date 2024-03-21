@@ -9,3 +9,15 @@ const wildberriesLayer = fork('wildberries.js',{
 wildberriesLayer.on('error', function (err) {
     console.log('WBLAYER ERROR: ' + err.message);
 });
+
+wildberriesLayer.on('close', function (err) {
+    console.log('WBLAYER CLOSED: ' + err);
+});
+
+wildberriesLayer.on('disconnect', function (err) {
+    console.log('WBLAYER DISCONNECTED: ' + err);
+});
+
+wildberriesLayer.on('exit', function (err) {
+    console.log('WBLAYER EXITED: ' + err);
+});
